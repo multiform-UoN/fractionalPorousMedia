@@ -1,0 +1,64 @@
+al = 0.8 ;
+
+% Spatial domain and mesh
+a = 0 ; b = 1 ; N = 50 ; Dx = (b-a)/(N-1) ; 
+N = 50 ; u0 = ones(N,1) ; 
+phi = 0.5 ; be = 0.8 ; 
+
+% Time domain and mesh 
+t0 = 0 ; T = 2 ; h = 0.01 ; 
+
+% Parameters
+phi = 0.5*ones(N,1) ; 
+beta = 0.5*ones(N,1) ; 
+LL = 0.01*gallery('tridiag',N,1,-2,1)/Dx^2 ;
+[t, u] = Basset(al,phi,beta,LL,t0,T,u0,h) ;
+
+close all
+
+%% Plot of the solution
+figure(1) 
+plot(Dx*(0:N-1),u(:,end)) 
+xlabel('x')
+title(sprintf('Solution at T = %f',T))
+
+%% Polot of the solution
+u_min = min(min(u)) ; u_max = max(max(u)) ;
+K = size(u,2) ; 
+F(K) = struct('cdata',[],'colormap',[]);
+for k = 1 : 10 : K
+    plot(Dx*(0:N-1),u(:,k))
+    text(0.1,0.9,sprintf('t=%4.2f',t(k)), ...
+        'Units','Normalized','FontSize',13) ;
+    xlabel('x') ; ylabel('u(x,t)') ;
+    axis([0,(N-1)*Dx,u_min,u_max]) ;
+    %drawnow ;
+    F(k) = getframe(gcf);
+end
+
+%% Check for the scalar case
+if N == 1 
+f_fun = @(t,y) LL*y ;
+J_fun = @(t,y) LL ;
+y0 = u0 ; 
+[t, y] = MT_FDE_PI1_Im([1,al],[phi,be],f_fun,J_fun,t0,T,y0,h) ;
+
+figure(10)
+plot(t,y,t,u) 
+title('Comparison with a different code in the scalar case')
+end
+
+% -------------------------------------------------------------------------
+% MT_FDE_PI1_Im  Solves on the interval [t0,T] an initial value problem
+%                for the multiterm fractional differential equation
+%
+%    lam_Q D^(al_Q) y(t) + ... + lam_1 D^(al_1) y(t) = f(t,y(t))
+%    y(0) = y0(1), y'(0) = y0(2), ... y^m(0) = y0(m)
+%
+%                with m the smallest integer greater than max(al_1,...,al_Q). 
+%                The problem is solved by means of the implicit  
+%                product-integration rule of rectangular type having order 
+%                1 of convergence. 
+%
+% Further information on this code are available in [1]; please, cite this
+% code as [1] (see later on). 
