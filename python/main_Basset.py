@@ -58,20 +58,22 @@ for n in range(1, N):
     u[-1,n] = u[-1,0]
 
 
-# SAVING SOLUTION
-params = {
-    'T':T,
-    'N':N,
-    'a':a,
-    'b':b,
-    'M':M,
-    'alpha':alpha,
-    'phi':phi,
-    'beta':beta,
-    'nu':nu,
-}
 
+# SAVING SOLUTION
+# params = {
+#     'T':T,
+#     'N':N,
+#     'a':a,
+#     'b':b,
+#     'M':M,
+#     'alpha':alpha,
+#     'phi':phi,
+#     'beta':beta,
+#     'nu':nu,
+# }
 # np.savez(f'./results/u_{datetime.datetime.now().strftime("%Y-%d-%m_%H-%M-%S")}.npz', u=u, f=f, params=params)
+
+
 
 # exit()
 # PLOTTING

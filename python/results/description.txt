@@ -1,3 +1,6 @@
 This folder contains the numerical solutions
 obtained through numerical algorithms.
 
+This folder is empty when the repository is cloned
+because the "*.npz" and "*.npy" files are not saved
+in github
