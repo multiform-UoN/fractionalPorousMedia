@@ -1,6 +1,8 @@
 # CREATI DA ME
 figures/
 .vscode/
+# *.npz
+# *.npy
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

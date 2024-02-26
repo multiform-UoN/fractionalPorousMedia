@@ -71,7 +71,7 @@ params = {
     'nu':nu,
 }
 
-np.savez(f'./u_{datetime.datetime.now().strftime("%Y-%d-%m_%H:%M:%S")}.npz', u=u, f=f, params=params)
+# np.savez(f'./results/u_{datetime.datetime.now().strftime("%Y-%d-%m_%H-%M-%S")}.npz', u=u, f=f, params=params)
 
 # exit()
 # PLOTTING
