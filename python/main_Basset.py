@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import sparse
 from scipy.special import gamma
+import datetime
 
 
 def b_fun(k, alpha):
@@ -70,9 +71,9 @@ params = {
     'nu':nu,
 }
 
-np.savez('./u.npz', u=u, f=f, params=params)
+np.savez(f'./u_{datetime.datetime.now().strftime("%Y-%d-%m_%H:%M:%S")}.npz', u=u, f=f, params=params)
 
-exit()
+# exit()
 # PLOTTING
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
