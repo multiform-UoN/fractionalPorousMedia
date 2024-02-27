@@ -3,17 +3,18 @@ close all ; clear all
 
 % Spatial domain and mesh
 a = 0 ; b = 1 ; N = 50 ; Dx = (b-a)/(N-1) ; 
-N = 50 ; u0 = ones(N,1) ; 
+u0 = ones(N,1) ; 
 
 % Time domain and mesh 
 t0 = 0 ; T = 4 ; h = 0.01 ; 
 
 % Parameters
 al = 0.8 ;
-phi = 0.5*ones(N,1) ; 
+phi = 
+; 
 beta = 0.5*ones(N,1) ; 
-c_diff = 0.01 ; c_advec = 0.2 ; 
-e = eye(N,1) ; F_Fun = @(t) e ; 
+c_diff = 0.01 ; c_advec = 0.0 ; 
+e = eye(N,1) ; F_Fun = @(t) 0*e ; 
 LL = c_diff*gallery('tridiag',N,1,-2,1)/Dx^2 + c_advec*gallery('tridiag',N,-1,0,1)/2/Dx;
 [t, u] = Basset(al,phi,beta,LL,F_Fun,t0,T,u0,h) ;
 
@@ -40,4 +41,3 @@ for k = 1 : 10 : K
     %drawnow ;
     F(k) = getframe(gcf);
 end
-
