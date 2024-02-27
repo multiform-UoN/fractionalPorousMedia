@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import sparse
 
+#ciao
 
 nu = 0.1
 T = 2.0 
