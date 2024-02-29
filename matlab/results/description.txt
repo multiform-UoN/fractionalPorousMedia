@@ -1,0 +1,5 @@
+This folder contains the numerical solutions
+obtained through numerical algorithms.
+
+This folder is empty when the repository is cloned
+because the "*.mat" files are not saved in github
