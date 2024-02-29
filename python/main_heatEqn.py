@@ -2,8 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import sparse
 
-#ciao
-
 nu = 0.1
 T = 2.0 
 N = 401
@@ -27,11 +25,11 @@ f = np.zeros_like(u)
 # Setting of the known term
 for i in range(N):
     t = i*h
-    f[:,i] = t*np.sin(t)*np.cos(2*x)
+    f[:,i] = t*np.sin(t)*np.cos(8*x)*np.tanh(x)
 
 # Initial + Boundary Conditions
 u[:,0] = 4*x*(1.0-x)*np.cos(9*x)
-u[0,0] = 0
+u[0,0] = 2
 u[-1,0] = 0
 
 fBC = np.zeros(M-2)
@@ -50,13 +48,15 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 
 def update(val):
-    l.set_ydata(u[:,int(u.shape[1]*val/T)])
+    l1.set_ydata(u[:,int(u.shape[1]*val/T)])
+    l2.set_ydata(f[:,int(u.shape[1]*val/T)])
 
 fig, ax = plt.subplots()
 plt.grid()
 plt.subplots_adjust(bottom=0.35)
 plt.ylim([np.min(u)-0.05*np.abs(np.max(u)), np.max(u)+0.05*np.abs(np.max(u))])
-l, = ax.plot(x, u[:,0], '-')
+l1, = ax.plot(x, u[:,0], '-')
+l2, = ax.plot(x, f[:,0], '-')
 axfreq = plt.axes([0.25, 0.15, 0.65, 0.03])
 freq = Slider(axfreq, 'Time', 0, T-0.0001*h, valinit=0, valstep=h)
 freq.on_changed(update)
