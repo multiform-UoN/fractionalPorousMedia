@@ -10,8 +10,7 @@ t0 = 0 ; T = 4 ; h = 0.01 ;
 
 % Parameters
 al = 0.8 ;
-phi = 
-; 
+phi = 0.5*ones(N,1) ; 
 beta = 0.5*ones(N,1) ; 
 c_diff = 0.01 ; c_advec = 0.0 ; 
 e = eye(N,1) ; F_Fun = @(t) 0*e ; 
@@ -41,3 +40,5 @@ for k = 1 : 10 : K
     %drawnow ;
     F(k) = getframe(gcf);
 end
+
+save("./results/out.mat","t","u")

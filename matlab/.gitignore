@@ -1,3 +1,8 @@
+# NO DATA FILES
+*.mat
+
+
+
 # Windows default autosave extension
 *.asv
 
