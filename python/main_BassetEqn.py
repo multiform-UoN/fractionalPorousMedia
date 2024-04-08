@@ -44,7 +44,7 @@ for n in range(1, N):
 
     y = np.sum(u[:,1:n], axis=1)
 
-    f1 = (NTX*L)@y[1:-1]
+    f1 = (NTX*L) @ y[1:-1]
     f2 = halpha*(u[1:-1,1:n]@bb[:-1])
     f3 = (phi + beta*(((n*h)**(1-alpha))/gamma(2-alpha)))*u[1:-1,0]
     f4 = h*np.sum(f[1:-1,1:n], axis=1)
@@ -81,13 +81,15 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 
 def update(val):
-    l.set_ydata(u[:,int(u.shape[1]*val/T)])
+    l1.set_ydata(u[:,int(u.shape[1]*val/T)])
+    l2.set_ydata(f[:,int(u.shape[1]*val/T)])
 
 fig, ax = plt.subplots()
 plt.grid()
 plt.subplots_adjust(bottom=0.35)
 plt.ylim([np.min(u)-0.05*np.abs(np.max(u)), np.max(u)+0.05*np.abs(np.max(u))])
-l, = plt.plot(x, u[:,0], '.-')
+l1, = plt.plot(x, u[:,0], '.-')
+l2, = plt.plot(x, f[:,0], '--')
 axfreq = plt.axes([0.25, 0.15, 0.65, 0.03])
 freq = Slider(axfreq, 'Time', 0, T-0.5*h, valinit=0, valstep=h)
 freq.on_changed(update)
