@@ -5,7 +5,7 @@ import datetime
 
 
 b_fun = lambda k, alpha: (np.power(k+1, 1-alpha)-np.power(k, 1-alpha))/gamma(2-alpha)
-f_fun = lambda t, x: np.outer(0.3 + np.sin(15*x)/4, np.exp(-t*0.5*np.sin(5*t)))
+f_fun = lambda t, x: np.outer((np.abs(b-x)*np.exp(x))*(0.3 + np.sin(15*x)/4), np.exp(-t*0.5*np.sin(5*t)))
 
 
 alpha = 0.8
@@ -18,9 +18,9 @@ N = 101
 h = T/(N-1); print(f'h = {h}')
 time = np.linspace(0.0, T, N)
 
-a = -1
-b = 1
-M = 101
+a = 0
+b = 3.0
+M = 81
 x = np.linspace(a, b, M)
 dx = x[1]-x[0]
 
@@ -92,9 +92,9 @@ if True:
         line_f_time.set_ydata(f[:,int(u.shape[1]*val/T)])
         line_im_space.set_xdata([val,val])
     ax_time = fig.add_subplot(gs[1, 0])
-    ax_time.set_ylim([np.min(u)-0.05*np.abs(np.max(u)), np.max(u)+0.05*np.abs(np.max(u))])
-    line_u_time, = ax_time.plot(x, u[:,0], '.-')
-    line_f_time, = ax_time.plot(x, f[:,0], '.--')
+    ax_time.set_ylim([np.min(u)-0.05*np.abs(np.max(u)),  np.max(u)+0.05*np.abs(np.max(u))])
+    line_u_time, = ax_time.plot(x, u[:,0], '.-' , label='u')
+    line_f_time, = ax_time.plot(x, f[:,0], '.--', label='f')
     ax_time.set_xlabel(r'$x$')
     ax_time.set_ylabel(r'$u(\cdot,t)$')
     ax_time.grid()
@@ -110,8 +110,8 @@ if True:
         line_im_time.set_ydata([val,val])
     ax_space = fig.add_subplot(gs[1, 1])
     ax_space.set_ylim([np.min(u)-0.05*np.abs(np.max(u)), np.max(u)+0.05*np.abs(np.max(u))])
-    line_u_space, = ax_space.plot(time, u[int(u.shape[0]/2),:], '.-')
-    line_f_space, = ax_space.plot(time, f[int(u.shape[0]/2),:], '.-')
+    line_u_space, = ax_space.plot(time, u[int(u.shape[0]/2),:], '.-', label='u')
+    line_f_space, = ax_space.plot(time, f[int(u.shape[0]/2),:], '.--', label='f')
     ax_space.set_xlabel(r'$t$')
     ax_space.set_ylabel(r'$u(x,\cdot)$')
     ax_space.grid()
@@ -121,7 +121,7 @@ if True:
 
 
     ax_imshow = fig.add_subplot(gs[0, :])
-    ims = ax_imshow.imshow(u, cmap='inferno', aspect='auto', origin='lower', extent=(0.0, T, a, b))
+    ims = ax_imshow.imshow(u, cmap='gist_earth', aspect='auto', origin='lower', extent=(0.0, T, a, b))
     cbar = fig.colorbar(ims)
     cbar.set_label(r'$u(x,t)$')
     line_im_space, = ax_imshow.plot([0.0,0.0],[a,b], 'k--')
