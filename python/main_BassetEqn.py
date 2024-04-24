@@ -37,15 +37,15 @@ u[-1,0] = 0.0
 
 for n in range(1, N):
     halpha = np.power(h, 1-alpha)
-    diffeq = nu*h/np.square(dx)
+    NUeq = nu*h/np.square(dx)
 
     bb = b_fun(n-np.arange(1,n+1), alpha)
 
-    A = (phi + bb[-1]*halpha)*Id - diffeq*L
+    A = (phi + bb[-1]*halpha)*Id - NUeq*L
 
     y = np.sum(u[:,1:n], axis=1)
 
-    f1 = (diffeq*L) @ y[1:-1]
+    f1 = (NUeq*L) @ y[1:-1]
     f2 = halpha*(u[1:-1,1:n]@bb[:-1])
     f3 = (phi + beta*(((n*h)**(1-alpha))/gamma(2-alpha)))*u[1:-1,0]
     f4 = h*np.sum(f[1:-1,1:n], axis=1)
