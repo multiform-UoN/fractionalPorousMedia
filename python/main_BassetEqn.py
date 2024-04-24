@@ -1,12 +1,11 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy import sparse
 from scipy.special import gamma
 import datetime
 
 
-def b_fun(k, alpha):
-    return (np.power(k+1, 1-alpha)-np.power(k, 1-alpha))/gamma(2-alpha)
+b_fun = lambda k, alpha: (np.power(k+1, 1-alpha)-np.power(k, 1-alpha))/gamma(2-alpha)
+f_fun = lambda t, x: np.outer(0.3 + np.sin(15*x)/4, np.exp(-t*0.5*np.sin(5*t)))
 
 
 alpha = 0.8
@@ -15,12 +14,13 @@ beta = 0.5
 nu = 0.01
 
 T = 2.0
-N = 5001
-h = T/(N-1)
+N = 101
+h = T/(N-1); print(f'h = {h}')
+time = np.linspace(0.0, T, N)
 
-a = 0.0
-b = 1.0
-M = 21
+a = -1
+b = 1
+M = 101
 x = np.linspace(a, b, M)
 dx = x[1]-x[0]
 
@@ -28,7 +28,8 @@ L  = sparse.diags([-2.0*np.ones(M-2), np.ones(M-3), np.ones(M-3)], [0, -1, 1])
 Id = sparse.diags(np.ones(M-2), 0)
 
 u = np.zeros((M, N)) #(x, t)
-f = np.zeros_like(u)
+# f = np.zeros_like(u)
+f = f_fun(np.linspace(0.0, T, N), x)
 
 u[:,0] = 1.0 + 0.0*x
 u[0,0] = 0.0
@@ -36,15 +37,15 @@ u[-1,0] = 0.0
 
 for n in range(1, N):
     halpha = np.power(h, 1-alpha)
-    NTX = nu*h/np.square(dx)
+    diffeq = nu*h/np.square(dx)
 
     bb = b_fun(n-np.arange(1,n+1), alpha)
 
-    A = (phi + bb[-1]*halpha)*Id - NTX*L
+    A = (phi + bb[-1]*halpha)*Id - diffeq*L
 
     y = np.sum(u[:,1:n], axis=1)
 
-    f1 = (NTX*L) @ y[1:-1]
+    f1 = (diffeq*L) @ y[1:-1]
     f2 = halpha*(u[1:-1,1:n]@bb[:-1])
     f3 = (phi + beta*(((n*h)**(1-alpha))/gamma(2-alpha)))*u[1:-1,0]
     f4 = h*np.sum(f[1:-1,1:n], axis=1)
@@ -60,37 +61,85 @@ for n in range(1, N):
 
 
 # SAVING SOLUTION
-# params = {
-#     'T':T,
-#     'N':N,
-#     'a':a,
-#     'b':b,
-#     'M':M,
-#     'alpha':alpha,
-#     'phi':phi,
-#     'beta':beta,
-#     'nu':nu,
-# }
-# np.savez(f'./results/u_{datetime.datetime.now().strftime("%Y-%d-%m_%H-%M-%S")}.npz', u=u, f=f, params=params)
+if False:
+    params = {
+        'T':T,
+        'N':N,
+        'a':a,
+        'b':b,
+        'M':M,
+        'alpha':alpha,
+        'phi':phi,
+        'beta':beta,
+        'nu':nu,
+    }
+    np.savez(f'./results/u_{datetime.datetime.now().strftime("%Y-%d-%m_%H-%M-%S")}.npz', u=u, f=f, params=params)
 
 
 
-# exit()
 # PLOTTING
-import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider
+if True:
+    import matplotlib.gridspec as gridspec
+    import matplotlib.pyplot as plt
+    from matplotlib.widgets import Slider, TextBox
 
-def update(val):
-    l1.set_ydata(u[:,int(u.shape[1]*val/T)])
-    l2.set_ydata(f[:,int(u.shape[1]*val/T)])
+    fig = plt.figure(figsize=(20,6))
+    gs = gridspec.GridSpec(2, 2)
 
-fig, ax = plt.subplots()
-plt.grid()
-plt.subplots_adjust(bottom=0.35)
-plt.ylim([np.min(u)-0.05*np.abs(np.max(u)), np.max(u)+0.05*np.abs(np.max(u))])
-l1, = plt.plot(x, u[:,0], '.-')
-l2, = plt.plot(x, f[:,0], '--')
-axfreq = plt.axes([0.25, 0.15, 0.65, 0.03])
-freq = Slider(axfreq, 'Time', 0, T-0.5*h, valinit=0, valstep=h)
-freq.on_changed(update)
-plt.show()
+    def update_time(val):
+        val = float(val)
+        line_u_time.set_ydata(u[:,int(u.shape[1]*val/T)])
+        line_f_time.set_ydata(f[:,int(u.shape[1]*val/T)])
+        line_im_space.set_xdata([val,val])
+    ax_time = fig.add_subplot(gs[1, 0])
+    ax_time.set_ylim([np.min(u)-0.05*np.abs(np.max(u)), np.max(u)+0.05*np.abs(np.max(u))])
+    line_u_time, = ax_time.plot(x, u[:,0], '.-')
+    line_f_time, = ax_time.plot(x, f[:,0], '.--')
+    ax_time.set_xlabel(r'$x$')
+    ax_time.set_ylabel(r'$u(\cdot,t)$')
+    ax_time.grid()
+    ax_time_slider = fig.add_axes([0.1, 0.04, 0.75, 0.04])
+    slider_time = Slider(ax_time_slider, 'time', 0, T-0.99*h, valinit=0, valstep=h)
+    slider_time.on_changed(update_time)
+    
+
+    def update_space(val):
+        val = float(val)
+        line_u_space.set_ydata(u[int(u.shape[0]*val/(b-a)),:])
+        line_f_space.set_ydata(f[int(u.shape[0]*val/(b-a)),:])
+        line_im_time.set_ydata([val,val])
+    ax_space = fig.add_subplot(gs[1, 1])
+    ax_space.set_ylim([np.min(u)-0.05*np.abs(np.max(u)), np.max(u)+0.05*np.abs(np.max(u))])
+    line_u_space, = ax_space.plot(time, u[int(u.shape[0]/2),:], '.-')
+    line_f_space, = ax_space.plot(time, f[int(u.shape[0]/2),:], '.-')
+    ax_space.set_xlabel(r'$t$')
+    ax_space.set_ylabel(r'$u(x,\cdot)$')
+    ax_space.grid()
+    ax_space_slider = fig.add_axes([0.1, 0.01, 0.75, 0.04])
+    slider_space = Slider(ax_space_slider, 'space', a, b-0.99*dx, valinit=0, valstep=dx)
+    slider_space.on_changed(update_space)
+
+
+    ax_imshow = fig.add_subplot(gs[0, :])
+    ims = ax_imshow.imshow(u, cmap='inferno', aspect='auto', origin='lower', extent=(0.0, T, a, b))
+    cbar = fig.colorbar(ims)
+    cbar.set_label(r'$u(x,t)$')
+    line_im_space, = ax_imshow.plot([0.0,0.0],[a,b], 'k--')
+    line_im_time, = ax_imshow.plot([0.0,T],[0.5*(a+b),0.5*(a+b)], 'k--')
+    ax_imshow.set_xlabel(r'$t$')
+    ax_imshow.set_ylabel(r'$x$')
+
+    # axbox = fig.add_axes([0.2, 0.06, 0.3, 0.07])
+    # text_box = TextBox(axbox, "Time", textalignment="left")
+    # text_box.on_submit(update)
+    # text_box.set_val(0)
+    # fig.align_labels()
+    plt.subplots_adjust(
+        top=0.975,
+        bottom=0.17,
+        left=0.045,
+        right=0.99,
+        hspace=0.275,
+        wspace=0.155
+    )
+    plt.show()
