@@ -9,8 +9,9 @@ function [t, u] = Basset(al,phi,beta,LL,F_fun,t0,T,u0,h)
     % ================================================================
     
     % Number of points in which to evaluate the solution and the weights
-    r = 64 ; 
-    N = ceil((T-t0)/h) ; r = N ; 
+    N = ceil((T-t0)/h) ;
+    % r = 64 ;
+    r = N ; 
     Nr = ceil((N+1)/r)*r ;
     Qr = ceil(log2((Nr)/r)) - 1 ;
     NNr = 2^(Qr+1)*r ;

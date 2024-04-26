@@ -1,7 +1,7 @@
 # CREATI DA ME
 figures/
 .vscode/
-# *.npz
+*.npz
 # *.npy
 
 # Byte-compiled / optimized / DLL files
