@@ -62,7 +62,7 @@ for n in range(1, N_time):
 
 
 
-# SAVING SOLUTION
+# SAVING SOLUTIONsvd_2020_demeaned_id20240227115752
 if True:
     params = {
         'T':T,
@@ -76,7 +76,7 @@ if True:
         'nu':nu,
     }
     # np.savez(f'./results/u_{datetime.datetime.now().strftime("%Y-%d-%m_%H-%M-%S")}.npz', u=u, f=f, params=params)
-    np.savez(f'./results/out.npz', u=u, f=f, params=params)
+    np.savez(f'./results/out.npz', t=time, u=u, f=f, params=params)
 
 
 
