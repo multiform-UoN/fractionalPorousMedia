@@ -25,6 +25,10 @@ c_advec = 0.0 ;
 e = eye(N,1) ; 
 F_Fun = @(t) 0*e ; 
 LL = c_diff*gallery('tridiag',N,1,-2,1)/Dx^2 + c_advec*gallery('tridiag',N,-1,0,1)/2/Dx;
+LL(1,:)=0;
+LL(1,1)=1;
+LL(end,:)=0;
+LL(end,end)=1;
 [t, u] = Basset(al,phi,beta,LL,F_Fun,t0,T,u0,h) ;
 
 u_min = min(min(u)) ; 
