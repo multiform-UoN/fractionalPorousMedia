@@ -41,7 +41,7 @@ for n in range(1, N_time):
     halpha = np.power(dt, 1-alpha)
     NUeq = nu*dt/np.square(dx)
 
-    bb = b_fun(n-np.arange(1,n+1), alpha)
+    bb = beta*b_fun(n-np.arange(1,n+1), alpha)
 
     A = (phi + bb[-1]*halpha)*Id - NUeq*L
 
