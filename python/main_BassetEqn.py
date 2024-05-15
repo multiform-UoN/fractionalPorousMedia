@@ -10,23 +10,32 @@ b_fun = lambda k, alpha: (np.power(k+1, 1-alpha)-np.power(k, 1-alpha))/gamma(2-a
 f_fun = lambda t, x: np.outer(0.0*x, 0.0*t)
 
 
-alpha = 0.8
-phi = 0.5
-beta = 0.5
-nu = 0.01
+alpha = 0.5 # Fractional derivative order
+phi = 0.5   # Porosity (standard derviative coefficient)
+beta = 0.5  # Fractional derivative coefficient
+nu = 0.01  # Diffusion coefficient
+vel = 0.  # Advection velocity
+advection = "upwind" # or "central" or "blended"
+T = 1 # Final time
+N_time = 1001 # Number of time steps
+dt = T/(N_time-1); print(f'dt = {dt}') # Time step
+time = np.linspace(0.0, T, N_time) # Time mesh
 
-T = 4.0
-N_time = 401
-dt = T/(N_time-1); print(f'dt = {dt}')
-time = np.linspace(0.0, T, N_time)
+a = 0 # Domain left boundary
+b = 1.0 # Domain right boundary
+N_space = 51 # Number of space steps
+mesh_x = np.linspace(a, b, N_space) # Space mesh
+dx = mesh_x[1]-mesh_x[0] # Space step
 
-a = 0
-b = 1.0
-N_space = 51
-mesh_x = np.linspace(a, b, N_space)
-dx = mesh_x[1]-mesh_x[0]
+L  = sparse.diags([-2.0*np.ones(N_space-2), np.ones(N_space-3), np.ones(N_space-3)], [0, -1, 1]) # Laplacian
+L_a_r = sparse.diags([-np.ones(N_space-2), np.ones(N_space-3)], [0, 1]) # right advection
+L_a_l = sparse.diags([np.ones(N_space-2), -np.ones(N_space-3)], [0, -1]) # left advection
+L_a_c = sparse.diags([-np.ones(N_space-3), np.ones(N_space-3)], [-1, 1])/2 # Central advection
+if advection == "upwind":
+    L_a = L_a_r*(vel < 0) + L_a_l*(vel > 0)
+elif advection == "central":
+    L_a = L_a_c
 
-L  = sparse.diags([-2.0*np.ones(N_space-2), np.ones(N_space-3), np.ones(N_space-3)], [0, -1, 1])
 Id = sparse.diags(np.ones(N_space-2), 0)
 
 u = np.zeros((N_space, N_time)) #(x, t)
@@ -35,15 +44,17 @@ f = f_fun(np.linspace(0.0, T, N_time), mesh_x)
 
 u[ :,0] = 1.0 + 0.0*mesh_x
 u[ 0,0] = 0.0
-u[-1,0] = 0.0
+u[-1,0] = 1.0
+
+halpha = np.power(dt, 1-alpha)
+NUeq = nu*dt/np.square(dx)
+vel_eq = vel*dt/dx
 
 for n in range(1, N_time):
-    halpha = np.power(dt, 1-alpha)
-    NUeq = nu*dt/np.square(dx)
 
     bb = beta*b_fun(n-np.arange(1,n+1), alpha)
 
-    A = (phi + bb[-1]*halpha)*Id - NUeq*L
+    A = (phi + bb[-1]*halpha)*Id - NUeq*L + vel_eq*L_a
 
     y = np.sum(u[:,1:n], axis=1)
 
@@ -52,9 +63,19 @@ for n in range(1, N_time):
     f3 = (phi + beta*(((n*dt)**(1-alpha))/gamma(2-alpha)))*u[1:-1,0]
     f4 = dt*np.sum(f[1:-1,1:n], axis=1)
 
-    fBC = np.zeros(N_space-2)    
-    fBC[0]  = (dt*nu/(dx**2))*(u[0,0] + y[0])
-    fBC[-1] = (dt*nu/(dx**2))*(u[-1,0] + y[-1])
+    fBC = np.zeros(N_space-2)
+    # diffusion terms
+    fBC[0]  = NUeq*(u[0,0] + y[0])
+    fBC[-1] = NUeq*(u[-1,0] + y[-1])
+    if advection == "central":
+        # advection terms (central)
+        fBC[0]  += vel_eq*(u[0,0] + y[0])/2
+        fBC[-1] -= vel_eq*(u[-1,0] +  y[-1])/2
+    elif advection == "upwind":
+        # advection terms (upwind)
+        fBC[0]  += vel_eq*(u[0,0] + y[0]) * (vel > 0)
+        fBC[-1] += vel_eq*(u[-1,0] +  y[-1]) * (vel < 0)
+        
 
     u[1:-1,n] = sparse.linalg.spsolve(A, f1 - f2 + f3 + f4 + fBC)
     u[0,n]  = u[0,0]

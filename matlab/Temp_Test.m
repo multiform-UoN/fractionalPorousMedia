@@ -6,30 +6,60 @@ clear all;
 a = 0 ; 
 b = 1 ; 
 N = 51 ; 
-Dx = (b-a)/(N-1) ; 
-u0 = ones(N,1) ;
-u0(1) = 0;
-u0(end) = 0;
+Dx = (b-a)/(N-1);
 
 % Time domain and mesh 
 t0 = 0 ; 
-T = 4 ; 
-h = 0.01 ; 
+T = 1 ; 
+h = 0.001 ; 
+
+% Initial and boundary conditions
+u0 = ones(N,1);
+u0(1) = 0;
+u0(end) = 1;
+
 
 % Parameters
-al = 0.8 ;
-phi = 0.5*ones(N,1) ; 
-beta = 0.5*ones(N,1) ; 
-c_diff = 0.01 ; 
-c_advec = 0.0 ; 
-e = eye(N,1) ; 
-F_Fun = @(t) 0*e ; 
-LL = c_diff*gallery('tridiag',N,1,-2,1)/Dx^2 + c_advec*gallery('tridiag',N,-1,0,1)/2/Dx;
-LL(1,:)=0;
-LL(1,1)=1;
-LL(end,:)=0;
-LL(end,end)=1;
-[t, u] = Basset(al,phi,beta,LL,F_Fun,t0,T,u0,h) ;
+al = 0.5; % Fractional order
+phi = 0.5*ones(N,1) ;  % Porosity
+beta = 0.5*ones(N,1) ; % fractional porosity
+c_diff = 0.01 ; % diffusion
+c_advec = 0. ; % advection
+FF = 0*eye(N,1) ; % forcing
+bc = "dir"
+
+% Advection diffusion operator
+LL = c_diff*gallery('tridiag',N,1,-2,1)/Dx^2 - c_advec*gallery('tridiag',N,-1,1,0)/Dx;
+
+if bc=="dir"     % Dirichlet Boundary conditions
+    LL(1,:)=0;
+    % LL(1,1)=1;
+    LL(end,:)=0;
+    % LL(end,end)=1;
+    FF(1) = 0;
+    FF(end) = 0;
+elseif bc=="neu" % Homogeneous Neumann Boundary conditions
+    tol = 1e5
+    LL(1,:)=0;
+    LL(1,1)=-tol;
+    LL(1,2)=tol;
+    LL(end,:)=0;
+    LL(end,end)=-tol;
+    LL(end,end-1)=tol;
+    FF(1) = 0;
+    FF(end) = 0;
+elseif bc=="dirneu" % Dirichlet left, Neumann right
+    LL(1,:)=0;
+    % LL(1,1)=1;
+    FF(1) = 0;
+    tol = 1e5
+    LL(end,:)=0;
+    LL(end,end)=-tol;
+    LL(end,end-1)=tol;
+    FF(end) = 0;
+end
+
+[t, u] = Basset(al,phi,beta,LL,@(t) FF,t0,T,u0,h) ;
 
 u_min = min(min(u)) ; 
 u_max = max(max(u)) ;
