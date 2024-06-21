@@ -6,8 +6,8 @@ import datetime
 
 b_fun = lambda k, alpha: (np.power(k+1, 1-alpha)-np.power(k, 1-alpha))/gamma(2-alpha)
 
-# f_fun = lambda t, x: np.outer((np.abs(b-x)*np.exp(x))*(0.3 + np.sin(15*x)/4), np.exp(-t*0.5*np.sin(5*t)))
-f_fun = lambda t, x: np.outer(0.0*x, 0.0*t)
+f_fun = lambda t, x: np.outer((np.abs(b-x)*np.exp(x))*(0.3 + np.sin(15*x)/4), np.exp(-t*0.5*np.sin(5*t)))
+# f_fun = lambda t, x: np.outer(0.0*x, 0.0*t)
 
 
 alpha = 0.5 # Fractional derivative order
@@ -23,7 +23,7 @@ time = np.linspace(0.0, T, N_time) # Time mesh
 
 a = 0 # Domain left boundary
 b = 1.0 # Domain right boundary
-N_space = 51 # Number of space steps
+N_space = 2001 # Number of space steps
 mesh_x = np.linspace(a, b, N_space) # Space mesh
 dx = mesh_x[1]-mesh_x[0] # Space step
 
@@ -42,9 +42,11 @@ u = np.zeros((N_space, N_time)) #(x, t)
 # f = np.zeros_like(u)
 f = f_fun(np.linspace(0.0, T, N_time), mesh_x)
 
-u[ :,0] = 1.0 + 0.0*mesh_x
+# u[ :,0] = 1.0 + 0.0*mesh_x
+u[ :,0] = (1-mesh_x)*mesh_x
 u[ 0,0] = 0.0
-u[-1,0] = 1.0
+
+u[-1,0] = 0.0
 
 halpha = np.power(dt, 1-alpha)
 NUeq = nu*dt/np.square(dx)
