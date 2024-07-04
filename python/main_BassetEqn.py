@@ -14,9 +14,9 @@ xR = 1.0 # Domain right boundary
 T = 1 # Final time
 
 # Discretisation
-N_space = 11 # Number of space steps
+N_space = 100 # Number of space steps
 advection = "upwind" # or "central" or "blended"
-N_time = 11 # Number of time steps
+N_time = 100 # Number of time steps
 time = np.linspace(0.0, T, N_time) # Time mesh
 
 # Physical parameters
