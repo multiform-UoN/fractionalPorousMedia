@@ -14,17 +14,17 @@ xR = 1.0 # Domain right boundary
 T = 1 # Final time
 
 # Discretisation
-N_space = 100 # Number of space steps
-advection = "upwind" # or "central" or "blended"
-N_time = 100 # Number of time steps
+N_space = 101 # Number of space steps
+advection = "central" # or "central" or "blended"
+N_time = 101 # Number of time steps
 time = np.linspace(0.0, T, N_time) # Time mesh
 
 # Physical parameters
 alpha = 0.5 # Fractional derivative order
 # phi = 0.5 * np.ones(N_space)  # Porosity (standard derviative coefficient)
 beta = 0.5 * np.ones(N_space)  # Fractional derivative coefficient
-nu = 0.1 * np.ones(N_space)  # Diffusion coefficient field
-vel = 1.1 * np.ones(N_space)  # Advection velocity field
+nu = 1 * np.ones(N_space)  # Diffusion coefficient field
+vel = 0.1 * np.ones(N_space)  # Advection velocity field
 
 # Boundary conditions
 zetaL = 0.0 # Left boundary condition (Neumann coefficient)
