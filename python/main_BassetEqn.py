@@ -88,15 +88,15 @@ halpha = np.power(dt, 1-alpha)
 
 for n in range(1, N_time):
 
-    bb = beta*b_fun(n-np.arange(1,n+1), alpha)
+    bb = b_fun(n-np.arange(1,n+1), alpha)
 
     A = M + (bb[-1]*halpha)*B - dt*L
 
     y = np.sum(u[:,1:n], axis=1)
 
     f1 = (dt * L) @ y
-    f2 = halpha * (u[:,1:n] @ bb[:-1])
-    f3 = (beta*(((n*dt)**(1-alpha))/gamma(2-alpha)))*u[:,0]
+    f2 = halpha * B * (u[:,1:n] @ bb[:-1])
+    f3 = (B*(((n*dt)**(1-alpha))/gamma(2-alpha)))*u[:,0]
     f4 = dt*np.sum(f[:,1:n], axis=1)
 
     # fBC = np.zeros(N_space-2)
