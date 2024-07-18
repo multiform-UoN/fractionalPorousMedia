@@ -16,7 +16,7 @@ T = 1 # Final time
 # Discretisation
 N_space = 101 # Number of space steps
 advection = "central" # or "central" or "blended"
-N_time = 101 # Number of time steps
+N_time = 10001 # Number of time steps
 time = np.linspace(0.0, T, N_time) # Time mesh
 
 # Physical parameters
@@ -24,7 +24,8 @@ alpha = 0.5 # Fractional derivative order
 # phi = 0.5 * np.ones(N_space)  # Porosity (standard derviative coefficient)
 beta = 0.5 * np.ones(N_space)  # Fractional derivative coefficient
 nu = 1 * np.ones(N_space)  # Diffusion coefficient field
-vel = 0.1 * np.ones(N_space)  # Advection velocity field
+vel = 0.5 * np.ones(N_space)  # Advection velocity field
+reac = 0.0 * np.ones(N_space)  # Reaction coefficient field
 
 # Boundary conditions
 zetaL = 0.0 # Left boundary condition (Neumann coefficient)
@@ -35,7 +36,7 @@ xiR = 0.0 # Left boundary condition (Dirichlet coefficient)
 
 # Initial conditions
 # initial_condition = lambda x: (1 - x) * x
-initial_condition = lambda x: x>0
+initial_condition = lambda x: (x>0) # 0 at x=0, 1 elsewhere
 
 # Forcing
 # forcing = lambda t, x: np.outer((np.abs(xR-x)*np.exp(x))*(0.3 + np.sin(15*x)/4), np.exp(-t*0.5*np.sin(5*t)))
@@ -48,8 +49,8 @@ forcing = lambda t, x: np.outer(0.0*x, 0.0*t)
 mesh_x = np.linspace(xL, xR, N_space) # Space mesh
 dx = mesh_x[1]-mesh_x[0] # Space step
 
-# Diffusion
-d0 = -2.0 * nu
+# Diffusion-reaction
+d0 = -2.0 * nu + reac
 d0[0]  = 0
 d0[-1] = 0
 d1 = nu[1:]
@@ -91,17 +92,22 @@ M = sparse.csr_matrix(M)
 # Fractional derivative matrix
 B = sparse.diags(beta, 0) @ M
 
+# forcing term
+f = forcing(np.linspace(0.0, T, N_time), mesh_x)
+f[0,:] = 0.0
+f[-1,:] = 0.0
+
+
 # %%
 # Time stepping
 
 
 # useful definitions
-dt = T/(N_time-1); print(f'dt = {dt}') # Time step
+dt = T/(N_time-1) # Time step
+print(f'dt = {dt}') 
 halpha = np.power(dt, 1-alpha)
-f = forcing(np.linspace(0.0, T, N_time), mesh_x)
-f[0,:] = 0.0
-f[-1,:] = 0.0
 b_fun = lambda k, alpha: (np.power(k+1, 1-alpha)-np.power(k, 1-alpha))/gamma(2-alpha)
+
 
 # Set solution vector and initial condition
 u = np.zeros((N_space, N_time)) #(x, t)
@@ -156,12 +162,13 @@ if True:
     def update_time(val):
         val = float(val)
         line_u_time.set_ydata(u[:,int(u.shape[1]*val/T)])
-        line_f_time.set_ydata(f[:,int(u.shape[1]*val/T)])
+        # line_u_time.set_ydata(u[:,int(u.shape[1]*val/T)]/max(u[:,int(u.shape[1]*val/T)])) # normalised
+        # line_f_time.set_ydata(f[:,int(u.shape[1]*val/T)])
         line_im_space.set_xdata([val,val])
     ax_time = fig.add_subplot(gs[1, 0])
     ax_time.set_ylim([np.min(u)-0.05*np.abs(np.max(u)),  np.max(u)+0.05*np.abs(np.max(u))])
     line_u_time, = ax_time.plot(mesh_x, u[:,0], '-' , label='u')
-    line_f_time, = ax_time.plot(mesh_x, f[:,0], '-', label='f')
+    # line_f_time, = ax_time.plot(mesh_x, f[:,0], '-', label='f')
     ax_time.set_xlabel(r'$x$')
     ax_time.set_ylabel(r'$u(\cdot,t)$')
     ax_time.legend()
@@ -174,12 +181,13 @@ if True:
     def update_space(val):
         val = float(val)
         line_u_space.set_ydata(u[int(u.shape[0]*val/(xR-xL)),:])
-        line_f_space.set_ydata(f[int(u.shape[0]*val/(xR-xL)),:])
+        # line_f_space.set_ydata(f[int(u.shape[0]*val/(xR-xL)),:])
         line_im_time.set_ydata([val,val])
     ax_space = fig.add_subplot(gs[1, 1])
-    ax_space.set_ylim([np.min(u)-0.05*np.abs(np.max(u)), np.max(u)+0.05*np.abs(np.max(u))])
-    line_u_space, = ax_space.plot(time, u[int(u.shape[0]/2),:], '-', label='u')
-    line_f_space, = ax_space.plot(time, f[int(u.shape[0]/2),:], '-', label='f')
+    # ax_space.set_ylim([np.min(u)-0.05*np.abs(np.max(u)), np.max(u)+0.05*np.abs(np.max(u))])
+    line_u_space, = ax_space.loglog(time, u[int(u.shape[0]/2),:], '-', label='u')
+    ax_space.loglog(time,time**(-alpha)/time[-1]**(-alpha)*u[int(u.shape[0]/2),-1], 'r--', label=r'$t^{-\alpha}$') # copilot, add power-law to compare #TODO
+    # line_f_space, = ax_space.loglog(time, f[int(u.shape[0]/2),:], '-', label='f')
     ax_space.set_xlabel(r'$t$')
     ax_space.set_ylabel(r'$u(x,\cdot)$')
     ax_space.grid()
