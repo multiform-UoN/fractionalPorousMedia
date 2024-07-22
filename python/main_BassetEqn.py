@@ -1,55 +1,52 @@
-# %%
-# Importing
 import numpy as np
 from scipy import sparse
 from scipy.special import gamma
 import datetime
 
-# %%
-# Parameters
 
-# Domain
+# DOMAIN OF INTEGRATION
 xL = 0 # Domain left boundary
 xR = 1.0 # Domain right boundary
 T = 1 # Final time
 
-# Discretisation
+# DISCRETISATION
 N_space = 101 # Number of space steps
 advection = "central" # or "central" or "blended"
-N_time = 10001 # Number of time steps
+N_time = 1001 # Number of time steps
 time = np.linspace(0.0, T, N_time) # Time mesh
 
-# Physical parameters
+# PHYSICAL PARAMETERS
 alpha = 0.5 # Fractional derivative order
-# phi = 0.5 * np.ones(N_space)  # Porosity (standard derviative coefficient)
-beta = 0.5 * np.ones(N_space)  # Fractional derivative coefficient
-nu = 1 * np.ones(N_space)  # Diffusion coefficient field
-vel = 0.5 * np.ones(N_space)  # Advection velocity field
-reac = 0.0 * np.ones(N_space)  # Reaction coefficient field
+# phi   = 0.5 * np.ones(N_space)  # Porosity (standard derviative coefficient)
+beta  = 0.5 * np.ones(N_space)  # Fractional derivative coefficient
+nu    = 1 * np.ones(N_space)  # Diffusion coefficient field
+vel   = 0.5 * np.ones(N_space)  # Advection velocity field
+reac  = 0.0 * np.ones(N_space)  # Reaction coefficient field
 
-# Boundary conditions
+# BOUNDARY CONDITIONS
 zetaL = 0.0 # Left boundary condition (Neumann coefficient)
-xiL = 1.0 # Left boundary condition (Dirichlet coefficient)
+xiL = 1.0   # Left boundary condition (Dirichlet coefficient)
 zetaR = 1.0 # Left boundary condition (Neumann coefficient)
-xiR = 0.0 # Left boundary condition (Dirichlet coefficient)
+xiR = 0.0   # Left boundary condition (Dirichlet coefficient)
 # NB Dirichlet values are imposed by the initial condition
 
-# Initial conditions
+# INITIAL CONDITIONS
 # initial_condition = lambda x: (1 - x) * x
 initial_condition = lambda x: (x>0) # 0 at x=0, 1 elsewhere
 
-# Forcing
+# FORCING
 # forcing = lambda t, x: np.outer((np.abs(xR-x)*np.exp(x))*(0.3 + np.sin(15*x)/4), np.exp(-t*0.5*np.sin(5*t)))
 forcing = lambda t, x: np.outer(0.0*x, 0.0*t)
 
 # %%
 # Setup the problem
 
-# Create Mesh
+# CREATE THE MESH
 mesh_x = np.linspace(xL, xR, N_space) # Space mesh
 dx = mesh_x[1]-mesh_x[0] # Space step
 
-# Diffusion-reaction
+
+# DIFFUSION OP.
 d0 = -2.0 * nu + reac
 d0[0]  = 0
 d0[-1] = 0
@@ -60,7 +57,7 @@ d2[0]  = 0
 L_diff = (1/np.square(dx))*sparse.diags([d0, d1, d2], [0, -1, 1]) # Laplacian
 
 
-# Advection
+# ADVECTION OP.
 d0 = vel
 d1 = vel[1:]
 d2 = vel[:-1]
@@ -69,51 +66,50 @@ d0[-1] = 0
 d1[-1] = 0
 d2[0]  = 0
 
-L_a_r = -(1/dx)*sparse.diags([-d0,  d2], [0, 1]) # right advection
-L_a_l = -(1/dx)*sparse.diags([ d0, -d1], [0, -1]) # left advection
-L_a_c = -(1/dx)*sparse.diags([-d1,  d2], [-1, 1])/2 # Central advection
+L_a_r = -(1/dx)*sparse.diags([-d0,  d2], [0, 1])    # right advection
+L_a_l = -(1/dx)*sparse.diags([ d0, -d1], [0, -1])   # left advection
+L_a_c = -(1/dx)*sparse.diags([-d1,  d2], [-1, 1])/2 # central advection
 
-# Assemble full matrix
+## Assemble full matrix
 L = None
 
 if advection == "upwind":
-    L_a = sparse.diags((vel>0)*1.0, 0)@L_a_l + sparse.diags((vel<0)*1.0, 0)@L_a_r
-    L = L_diff + L_a
+    L_adv = sparse.diags((vel>0)*1.0, 0)@L_a_l + sparse.diags((vel<0)*1.0, 0)@L_a_r
+    L = L_diff + L_adv
 elif advection == "central":
-    L_a = L_a_c
-    L = L_diff + L_a
+    L_adv = L_a_c
+    L = L_diff + L_adv
 
-# Mass (time derivative) matrix
+# MASS MATRIX (time derivative)
 M = np.eye(N_space)
 M[0,1] =  -zetaL/(zetaL-xiL*dx)
 M[-1,-2] = -zetaR/(zetaR+xiR*dx)
 M = sparse.csr_matrix(M)
 
-# Fractional derivative matrix
+# MASS MATRIX (fractional derivative)
 B = sparse.diags(beta, 0) @ M
 
-# forcing term
+# FORCING TERM
 f = forcing(np.linspace(0.0, T, N_time), mesh_x)
 f[0,:] = 0.0
 f[-1,:] = 0.0
 
 
 # %%
-# Time stepping
+# SOLVER
 
-
-# useful definitions
+## Useful definitions
 dt = T/(N_time-1) # Time step
 print(f'dt = {dt}') 
 halpha = np.power(dt, 1-alpha)
 b_fun = lambda k, alpha: (np.power(k+1, 1-alpha)-np.power(k, 1-alpha))/gamma(2-alpha)
 
 
-# Set solution vector and initial condition
+## Set solution vector and initial condition
 u = np.zeros((N_space, N_time)) #(x, t)
 u[ :,0] = initial_condition(mesh_x)
 
-# Time loop
+## Time loop
 for n in range(1, N_time):
 
     bb = b_fun(n-np.arange(1,n+1), alpha)
@@ -128,10 +124,11 @@ for n in range(1, N_time):
     u[:,n] = sparse.linalg.spsolve(A, f1 + f2 + f3 + f4)
 
 
-# %%
-# Saving solution
 
-# SAVING SOLUTIONsvd_2020_demeaned_id20240227115752
+##############################################################################################################################
+# %%
+# SAVING SOLUTION
+
 if True:
     params = {
         'T':T,
@@ -149,7 +146,7 @@ if True:
 
 
 # %%
-# Plotting
+# PLOTTING
 
 if True:
     import matplotlib.gridspec as gridspec

@@ -29,7 +29,7 @@ for i in range(N):
 
 # Initial + Boundary Conditions
 u[:,0] = 4*x*(1.0-x)*np.cos(9*x)
-u[0,0] = 2
+u[0,0] = 0
 u[-1,0] = 0
 
 fBC = np.zeros(M-2)
@@ -42,8 +42,9 @@ for n in range(1,N):
     u[-1,n] = u[-1,0] 
 
 
-
+##########################################################################################
 # PLOTTING
+
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 
@@ -55,9 +56,10 @@ fig, ax = plt.subplots()
 plt.grid()
 plt.subplots_adjust(bottom=0.35)
 plt.ylim([np.min(u)-0.05*np.abs(np.max(u)), np.max(u)+0.05*np.abs(np.max(u))])
-l1, = ax.plot(x, u[:,0], '-')
-l2, = ax.plot(x, f[:,0], '-')
+l1, = ax.plot(x, u[:,0], '-', label='u')
+l2, = ax.plot(x, f[:,0], '-', label='f')
 axfreq = plt.axes([0.25, 0.15, 0.65, 0.03])
 freq = Slider(axfreq, 'Time', 0, T-0.0001*h, valinit=0, valstep=h)
 freq.on_changed(update)
+ax.legend()
 plt.show()
