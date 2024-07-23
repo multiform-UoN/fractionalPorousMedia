@@ -19,7 +19,7 @@ time = np.linspace(0.0, T, N_time) # Time mesh
 alpha = 0.5 # Fractional derivative order
 # phi   = 0.5 * np.ones(N_space)  # Porosity (standard derviative coefficient)
 beta  = 0.5 * np.ones(N_space)  # Fractional derivative coefficient
-nu    = 1 * np.ones(N_space)  # Diffusion coefficient field
+nu    = 1.0 * np.ones(N_space)  # Diffusion coefficient field
 vel   = 0.5 * np.ones(N_space)  # Advection velocity field
 reac  = 0.0 * np.ones(N_space)  # Reaction coefficient field
 
@@ -46,8 +46,14 @@ mesh_x = np.linspace(xL, xR, N_space) # Space mesh
 dx = mesh_x[1]-mesh_x[0] # Space step
 
 
+# REACTION OP.
+d0 = reac
+d0[0] = 0
+d0[-1] = 0
+L_react = sparse.diags(d0, 0)
+
 # DIFFUSION OP.
-d0 = -2.0 * nu + reac
+d0 = -2.0 * nu
 d0[0]  = 0
 d0[-1] = 0
 d1 = nu[1:]
@@ -75,10 +81,10 @@ L = None
 
 if advection == "upwind":
     L_adv = sparse.diags((vel>0)*1.0, 0)@L_a_l + sparse.diags((vel<0)*1.0, 0)@L_a_r
-    L = L_diff + L_adv
+    L = L_diff + L_adv + L_react
 elif advection == "central":
     L_adv = L_a_c
-    L = L_diff + L_adv
+    L = L_diff + L_adv + L_react
 
 # MASS MATRIX (time derivative)
 M = np.eye(N_space)
