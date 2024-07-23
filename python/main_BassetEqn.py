@@ -7,12 +7,13 @@ import datetime
 # DOMAIN OF INTEGRATION
 xL = 0 # Domain left boundary
 xR = 1.0 # Domain right boundary
-T = 1 # Final time
+T = 10 # Final time
 
 # DISCRETISATION
 N_space = 101 # Number of space steps
+N_time  = 1001 # Number of time steps
 advection = "central" # or "central" or "blended"
-N_time = 1001 # Number of time steps
+# advection = "upwind"
 time = np.linspace(0.0, T, N_time) # Time mesh
 
 # PHYSICAL PARAMETERS
@@ -32,18 +33,18 @@ xiR = 0.0   # Left boundary condition (Dirichlet coefficient)
 
 # INITIAL CONDITIONS
 # initial_condition = lambda x: (1 - x) * x
-initial_condition = lambda x: (x>0) # 0 at x=0, 1 elsewhere
+initial_condition = lambda x: (x > 0) # 0 at x=0, 1 elsewhere
 
 # FORCING
 # forcing = lambda t, x: np.outer((np.abs(xR-x)*np.exp(x))*(0.3 + np.sin(15*x)/4), np.exp(-t*0.5*np.sin(5*t)))
-forcing = lambda t, x: np.outer(0.0*x, 0.0*t)
+forcing = lambda t, x: np.outer(0.0 * x, 0.0 * t)
 
 # %%
 # Setup the problem
 
 # CREATE THE MESH
 mesh_x = np.linspace(xL, xR, N_space) # Space mesh
-dx = mesh_x[1]-mesh_x[0] # Space step
+dx = mesh_x[1] - mesh_x[0] # Space step
 
 
 # REACTION OP.
@@ -60,7 +61,7 @@ d1 = nu[1:]
 d2 = nu[:-1]
 d1[-1] = 0
 d2[0]  = 0
-L_diff = (1/np.square(dx))*sparse.diags([d0, d1, d2], [0, -1, 1]) # Laplacian
+L_diff = (1.0 / np.square(dx)) * sparse.diags([d0, d1, d2], [0, -1, 1]) # Laplacian
 
 
 # ADVECTION OP.
@@ -69,27 +70,33 @@ d1 = vel[1:]
 d2 = vel[:-1]
 d0[0]  = 0
 d0[-1] = 0
-d1[-1] = 0
 d2[0]  = 0
+d1[-1] = 0
 
-L_a_r = -(1/dx)*sparse.diags([-d0,  d2], [0, 1])    # right advection
-L_a_l = -(1/dx)*sparse.diags([ d0, -d1], [0, -1])   # left advection
-L_a_c = -(1/dx)*sparse.diags([-d1,  d2], [-1, 1])/2 # central advection
+L_adv_l =  (1.0 / dx) * sparse.diags([ d0, -d1], [ 0, -1])     # left advection
+L_adv_r =  (1.0 / dx) * sparse.diags([-d0,  d2], [ 0,  1])     # right advection
+L_adv_c = -(1.0 / dx) * sparse.diags([-d1,  d2], [-1,  1]) / 2 # central advection
 
 ## Assemble full matrix
 L = None
 
 if advection == "upwind":
-    L_adv = sparse.diags((vel>0)*1.0, 0)@L_a_l + sparse.diags((vel<0)*1.0, 0)@L_a_r
+    L_adv = sparse.diags((vel > 0) * 1.0, 0) @ L_adv_l + sparse.diags((vel < 0) * 1.0, 0) @ L_adv_r
     L = L_diff + L_adv + L_react
 elif advection == "central":
-    L_adv = L_a_c
+    L_adv = L_adv_c
     L = L_diff + L_adv + L_react
 
 # MASS MATRIX (time derivative)
 M = np.eye(N_space)
-M[0,1] =  -zetaL/(zetaL-xiL*dx)
-M[-1,-2] = -zetaR/(zetaR+xiR*dx)
+M[0,0]   = -zetaL / dx + xiL
+M[0,1]   =  zetaL / dx
+M[-1,-1] =  zetaR / dx + xiR
+M[-1,-2] = -zetaR / dx
+
+# M[0,1]   = -zetaL / (zetaL - xiL * dx)
+# M[-1,-2] = -zetaR / (zetaR + xiR * dx)
+
 M = sparse.csr_matrix(M)
 
 # MASS MATRIX (fractional derivative)
@@ -105,10 +112,10 @@ f[-1,:] = 0.0
 # SOLVER
 
 ## Useful definitions
-dt = T/(N_time-1) # Time step
+dt = T / (N_time - 1) # Time step
 print(f'dt = {dt}') 
-halpha = np.power(dt, 1-alpha)
-b_fun = lambda k, alpha: (np.power(k+1, 1-alpha)-np.power(k, 1-alpha))/gamma(2-alpha)
+halpha = np.power(dt, 1 - alpha)
+b_fun = lambda k, alpha: (np.power(k + 1, 1 - alpha) - np.power(k, 1 - alpha)) / gamma(2 - alpha)
 
 
 ## Set solution vector and initial condition
@@ -118,15 +125,15 @@ u[ :,0] = initial_condition(mesh_x)
 ## Time loop
 for n in range(1, N_time):
 
-    bb = b_fun(n-np.arange(1,n+1), alpha)
-    A = M + (bb[-1]*halpha)*B - dt*L
+    bb = b_fun(n - np.arange(1, n + 1), alpha)
+    A = M + (bb[-1] * halpha) * B - dt * L
     y = np.sum(u[:,1:n], axis=1)
 
-    f1 = (M + B*(((n*dt)**(1-alpha))/gamma(2-alpha)))@u[:,0]
-    f2 = - halpha * B @ (u[:,1:n] @ bb[:-1])
+    f1 = (M + B * (((n * dt) ** (1 - alpha)) / gamma(2 - alpha))) @ u[:,0]
+    f2 = -halpha * B @ (u[:,1:n] @ bb[:-1])
     f3 = (dt * L) @ y
-    f4 = dt*np.sum(f[:,1:n], axis=1)
-        
+    f4 = dt * np.sum(f[:,1:n], axis=1)
+
     u[:,n] = sparse.linalg.spsolve(A, f1 + f2 + f3 + f4)
 
 
@@ -154,57 +161,72 @@ if True:
 # %%
 # PLOTTING
 
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider, TextBox
+from matplotlib import colors
+
 if True:
-    import matplotlib.gridspec as gridspec
-    import matplotlib.pyplot as plt
-    from matplotlib.widgets import Slider, TextBox
-
-    fig = plt.figure(figsize=(20,6))
-    gs = gridspec.GridSpec(2, 2)
-
     def update_time(val):
         val = float(val)
         line_u_time.set_ydata(u[:,int(u.shape[1]*val/T)])
         # line_u_time.set_ydata(u[:,int(u.shape[1]*val/T)]/max(u[:,int(u.shape[1]*val/T)])) # normalised
-        # line_f_time.set_ydata(f[:,int(u.shape[1]*val/T)])
         line_im_space.set_xdata([val,val])
+
+    def update_space(val):
+        val = float(val)
+        index = int(u.shape[0] * val / (xR - xL))
+        line_u_space.set_ydata(u[index,:])
+        line_longtime_space.set_ydata(u[index, -1] * (time[1:]/time[-1])**(-alpha))
+        line_im_time.set_ydata([val,val])
+
+
+    fig = plt.figure(figsize=(20,6))
+    gs = gridspec.GridSpec(2, 2)
+
     ax_time = fig.add_subplot(gs[1, 0])
     ax_time.set_ylim([np.min(u)-0.05*np.abs(np.max(u)),  np.max(u)+0.05*np.abs(np.max(u))])
     line_u_time, = ax_time.plot(mesh_x, u[:,0], '-' , label='u')
-    # line_f_time, = ax_time.plot(mesh_x, f[:,0], '-', label='f')
     ax_time.set_xlabel(r'$x$')
     ax_time.set_ylabel(r'$u(\cdot,t)$')
     ax_time.legend()
     ax_time.grid()
+    
     ax_time_slider = fig.add_axes([0.1, 0.04, 0.75, 0.04])
     slider_time = Slider(ax_time_slider, 'time', 0, T-0.99*dt, valinit=0, valstep=dt)
     slider_time.on_changed(update_time)
-    
 
-    def update_space(val):
-        val = float(val)
-        line_u_space.set_ydata(u[int(u.shape[0]*val/(xR-xL)),:])
-        # line_f_space.set_ydata(f[int(u.shape[0]*val/(xR-xL)),:])
-        line_im_time.set_ydata([val,val])
+    
     ax_space = fig.add_subplot(gs[1, 1])
     # ax_space.set_ylim([np.min(u)-0.05*np.abs(np.max(u)), np.max(u)+0.05*np.abs(np.max(u))])
-    line_u_space, = ax_space.loglog(time, u[int(u.shape[0]/2),:], '-', label='u')
-    ax_space.loglog(time,time**(-alpha)/time[-1]**(-alpha)*u[int(u.shape[0]/2),-1], 'r--', label=r'$t^{-\alpha}$') # copilot, add power-law to compare #TODO
-    # line_f_space, = ax_space.loglog(time, f[int(u.shape[0]/2),:], '-', label='f')
+    line_u_space,        = ax_space.semilogx(time, u[int(u.shape[0]/2), :], '-', label='u')
+    line_longtime_space, = ax_space.semilogx(time[1:], u[int(u.shape[0]/2), -1] * (time[1:]/time[-1])**(-alpha), 'r--', label=r'$C\,t^{-\alpha}$') # copilot, add power-law to compare #TODO
+    # ax_space.set_ylim([np.min(u), np.max(u)])
     ax_space.set_xlabel(r'$t$')
     ax_space.set_ylabel(r'$u(x,\cdot)$')
+    ax_space.legend()
     ax_space.grid()
+    
     ax_space_slider = fig.add_axes([0.1, 0.01, 0.75, 0.04])
     slider_space = Slider(ax_space_slider, 'space', xL, xR-0.99*dx, valinit=0, valstep=dx)
     slider_space.on_changed(update_space)
 
 
-    ax_imshow = fig.add_subplot(gs[0, :])
+    ax_imshow = fig.add_subplot(gs[0, 0])
     ims = ax_imshow.imshow(u, cmap='magma', aspect='auto', origin='lower', extent=(0.0, T, xL, xR))
     cbar = fig.colorbar(ims)
     cbar.set_label(r'$u(x,t)$')
     line_im_space, = ax_imshow.plot([0.0,0.0],[xL,xR], 'k--')
-    line_im_time, = ax_imshow.plot([0.0,T],[0.5*(xL+xR),0.5*(xL+xR)], 'k--')
+    line_im_time,  = ax_imshow.plot([0.0,T],[0.5*(xL+xR),0.5*(xL+xR)], 'k--')
+    ax_imshow.set_xlabel(r'$t$')
+    ax_imshow.set_ylabel(r'$x$')
+    
+    ax_imshow = fig.add_subplot(gs[0, 1])
+    ims = ax_imshow.imshow(np.abs(u[:,1:] - np.outer(u[:, -1], (time[1:]/time[-1])**(-alpha))), cmap='magma', aspect='auto', origin='lower', extent=(0.0, T, xL, xR), norm=colors.LogNorm())
+    cbar = fig.colorbar(ims)
+    cbar.set_label(r'$u(x,t) - C\,t^{-\alpha}$')
+    line_im_space, = ax_imshow.plot([0.0,0.0],[xL,xR], 'k--')
+    line_im_time,  = ax_imshow.plot([0.0,T],[0.5*(xL+xR),0.5*(xL+xR)], 'k--')
     ax_imshow.set_xlabel(r'$t$')
     ax_imshow.set_ylabel(r'$x$')
 
