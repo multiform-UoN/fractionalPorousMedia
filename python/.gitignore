@@ -3,6 +3,7 @@ figures/
 .vscode/
 *.npz
 # *.npy
+*.pdf
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
