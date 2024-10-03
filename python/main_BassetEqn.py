@@ -25,7 +25,6 @@ def pipeline(alpha, T, delta_time):
     N_space = 101 # Number of space steps
     # N_time  = 1001 # Number of time steps
     N_time  = int(T/delta_time) + 1 # Number of time steps
-    print(f'N_time = {N_time}')
     advection = "central" # or "central" or "blended"
     advection = "upwind"
     time = np.linspace(0.0, T, N_time) # Time mesh
@@ -49,6 +48,7 @@ def pipeline(alpha, T, delta_time):
     # initial_condition = lambda x: (1 - x) * x
     initial_condition = lambda x: (x > 0) # 0 at x=0, 1 elsewhere
     # initial_condition = lambda x: x # parabola
+    # initial_condition = lambda x: np.exp(x/2)*np.sin(2*np.pi*x) # sin
 
     # FORCING
     # forcing = lambda t, x: np.outer((np.abs(xR-x)*np.exp(x))*(0.3 + np.sin(15*x)/4), np.exp(-t*0.5*np.sin(5*t)))
@@ -158,12 +158,17 @@ def pipeline(alpha, T, delta_time):
 
 
 vec_alpha = [0.0, 0.25, 0.5, 0.75]
-vec_dt    = [0.1, 0.075, 0.05, 0.025, 0.01]
+vec_dt    = [0.01, 0.0075, 0.005, 0.0025, 0.001]
+
+SAVEFIG = False
+
+#%%
+# Plots
 
 FIXED_COLORS = True
 if FIXED_COLORS:
     for index, val in enumerate(vec_alpha):
-        fig = plt.figure(f'alpha = {val}', figsize=(10,6))
+        fig = plt.figure(f'alpha = {val}', figsize=(6,6))
         time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=val, T=10, delta_time=0.01)
         ims = plt.imshow(u, cmap='jet', aspect='auto', origin='lower', extent=(0.0, T, xL, xR))
         # T, X = np.meshgrid(time, mesh_x, indexing='xy')
@@ -172,12 +177,14 @@ if FIXED_COLORS:
         plt.xlabel(r'$t$')
         plt.ylabel(r'$x$') 
         plt.tight_layout()
-        plt.savefig(f'./fig_colors_alpha={val}.pdf')
-        # plt.show()
+        if SAVEFIG:
+            plt.savefig(f'./fig_colors_alpha={val}.pdf')
+        else:
+            plt.show()
 
 FIXED_X = True
 if FIXED_X:
-    fig = plt.figure(figsize=(10,6))
+    fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_alpha):
         time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=val, T=10, delta_time=0.01)
         plt.plot(time, u[mesh_x==0.5, :].flatten(), label=rf'$\alpha={val}$')
@@ -186,12 +193,14 @@ if FIXED_X:
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    plt.savefig(f'./fig_fixed_x=0.5.pdf')
-    # plt.show()
+    if SAVEFIG:
+        plt.savefig(f'./fig_fixed_x=0.5.pdf')
+    else:
+        plt.show()
 
 FIXED_T = True
 if FIXED_T:
-    fig = plt.figure(figsize=(10,6))
+    fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_alpha):
         time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=val, T=10, delta_time=0.01)
         plt.plot(mesh_x, u[:, time==5].flatten(), label=rf'$\alpha={val}$')
@@ -200,14 +209,19 @@ if FIXED_T:
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    plt.savefig(f'./fig_fixed_t=5.pdf')
-    # plt.show()
+    if SAVEFIG:
+        plt.savefig(f'./fig_fixed_t=5.pdf')
+    else:
+        plt.show()
+
+#%%
+# Late time
 
 LONG_TIME=True
 if LONG_TIME:
     asimptote_index = 100
     
-    fig = plt.figure(figsize=(10,6))
+    fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_alpha):
         time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=val, T=100, delta_time=0.01)
         plt.loglog(time[asimptote_index:], u[int(u.shape[0]/2), -1] * (time[asimptote_index:]/time[-1])**(-val), f'C{index}--', label=r'$C\,t^{-\alpha}$' + rf'   $\alpha={val}$')
@@ -217,53 +231,66 @@ if LONG_TIME:
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    plt.savefig(f'./fig_long_time_var_alpha.pdf')
+    if SAVEFIG:
+        plt.savefig(f'./fig_long_time_var_alpha.pdf')
+    else:
+        plt.show()
     
-    fig = plt.figure(figsize=(10,6))
-    for index, val in enumerate(vec_dt):
-        time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=0.5, T=100, delta_time=val)
-        plt.loglog(time[asimptote_index:], u[int(u.shape[0]/2), -1] * (time[asimptote_index:]/time[-1])**(-val), f'C{index}--', label=r'$C\,t^{-\alpha}$' + rf'   $\Delta t={val}$')
-        plt.loglog(time[asimptote_index:], u[int(u.shape[0]/2), asimptote_index:], f'C{index}-')
-    plt.xlabel(r'$t$')    
-    plt.ylabel(r'$u$')
-    plt.legend()
-    plt.grid()
-    plt.tight_layout()
-    plt.savefig(f'./fig_long_time_var_dt.pdf')
-    # plt.show()
+    # fig = plt.figure(figsize=(6,6))
+    # for index, val in enumerate(vec_dt):
+    #     time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=0.5, T=100, delta_time=val)
+    #     plt.loglog(time[asimptote_index:], u[int(u.shape[0]/2), -1] * (time[asimptote_index:]/time[-1])**(-val), f'C{index}--', label=r'$C\,t^{-\alpha}$' + rf'   $\Delta t={val}$')
+    #     plt.loglog(time[asimptote_index:], u[int(u.shape[0]/2), asimptote_index:], f'C{index}-')
+    # plt.xlabel(r'$t$')    
+    # plt.ylabel(r'$u$')
+    # plt.legend()
+    # plt.grid()
+    # plt.tight_layout()
+    # if SAVEFIG:
+    #     plt.savefig(f'./fig_long_time_var_dt.pdf')
+    # else:
+    #     plt.show()
+
+#%%
+# early time
 
 SHORT_TIME=True
 if SHORT_TIME:
     asimptote_index = 100
-    
-    fig = plt.figure(figsize=(10,6))
+    xi = int(u.shape[0]/2)
+    fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_alpha):
-        time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=val, T=1, delta_time=0.01)
-        plt.plot(time[:asimptote_index], u[int(u.shape[0]/2), :asimptote_index], f'C{index}-')
+        time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=val, T=.1, delta_time=0.001)
+        plt.plot(time[:asimptote_index], u[xi, :asimptote_index], f'C{index}-')
         plt.plot(time[:asimptote_index], 
-        early_time(time[:asimptote_index], u[int(u.shape[0]/2), 0], C(u[int(u.shape[0]/2), 0], u[int(u.shape[0]/2), 1], time[1])), f'C{index}--', label=rf'$\alpha = {val}$'
+        early_time(time[:asimptote_index], u[xi, 0], C(u[xi, 0], u[xi, 1], time[1])), f'C{index}--', label=rf'$\alpha = {val}$'
         )
     plt.xlabel(r'$t$')    
     plt.ylabel(r'$u$')
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    plt.savefig(f'./fig_short_time_var_alpha.pdf')
+    if SAVEFIG:
+        plt.savefig(f'./fig_short_time_var_alpha.pdf')
+    else:
+        plt.show()
     
-    fig = plt.figure(figsize=(10,6))
+    fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_dt):
-        time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=0.5, T=1, delta_time=val)
-        plt.plot(time[:asimptote_index], u[int(u.shape[0]/2), :asimptote_index], f'C{index}-')
+        time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=0.5, T=.1, delta_time=val)
+        plt.plot(time[:asimptote_index], u[xi, :asimptote_index], f'C{index}-')
         plt.plot(time[:asimptote_index], 
-        early_time(time[:asimptote_index], u[int(u.shape[0]/2), 0], C(u[int(u.shape[0]/2), 0], u[int(u.shape[0]/2), 1], time[1])), f'C{index}--', label=rf'$\Delta t = {val}$'
+        early_time(time[:asimptote_index], u[xi, 0], C(u[xi, 0], u[xi, 1], time[1])), f'C{index}--', label=rf'$\Delta t = {val}$'
         )
     plt.xlabel(r'$t$')    
     plt.ylabel(r'$u$')
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    plt.savefig(f'./fig_short_time_var_dt.pdf')
-    # plt.show()
+    if SAVEFIG:
+        plt.savefig(f'./fig_short_time_var_dt.pdf')
+    else:
+        plt.show()
 
 ############
 
@@ -381,3 +408,5 @@ if INTERACTIVE:
 #     }
 #     # np.savez(f'./results/u_{datetime.datetime.now().strftime("%Y-%d-%m_%H-%M-%S")}.npz', u=u, f=f, params=params)
 #     np.savez(f'./results/out.npz', t=time, u=u, f=f, params=params)
+
+# %%
