@@ -1,3 +1,6 @@
+#%%
+# Import
+
 import numpy as np
 from scipy import sparse
 from scipy.special import gamma
@@ -7,6 +10,107 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, TextBox
 from matplotlib import colors
+
+
+from scipy.sparse.linalg import eigs, spsolve
+
+#%%
+# Functions
+
+def compute_principal_eigen(matrix):
+    """
+    Compute the principal eigenvalue and eigenvector of the given matrix.
+
+    Parameters:
+    matrix (scipy.sparse matrix): The input matrix.
+
+    Returns:
+    tuple: Principal eigenvalue and corresponding eigenvector.
+    """
+    k = 20  # Number of eigenvalues and eigenvectors to compute
+    which = 'SM'  # 'LM' means Largest Magnitude
+
+    # Compute the largest eigenvalue and corresponding eigenvector
+    eigval, eigvec = eigs(matrix, k=k, which=which)
+    
+    print(f'Eigenvalues: {eigval}')
+    
+    return eigval[0], eigvec[:,0]
+
+def power_iteration(matrix, num_iterations=1000, tolerance=1e-10):
+    """
+    Compute the largest eigenvalue and corresponding eigenvector using the power iteration method.
+
+    Parameters:
+    matrix (numpy.ndarray or scipy.sparse matrix): The input matrix.
+    num_iterations (int): Maximum number of iterations.
+    tolerance (float): Convergence tolerance.
+
+    Returns:
+    tuple: Largest eigenvalue and corresponding eigenvector.
+    """
+    # Start with a random vector of 1s
+    b_k = np.zeros(matrix.shape[1])
+    b_k[0] = 1.0
+    
+    for i in range(num_iterations):
+        # Calculate the matrix-by-vector product
+        b_k1 = matrix @ b_k
+        
+        # Normalize the vector
+        b_k1_norm = np.linalg.norm(b_k1)
+        print(f'Iteration: {i}, Norm: {b_k1_norm}')
+        b_k1 = b_k1 / b_k1_norm
+        
+        # Check for convergence
+        if np.linalg.norm(b_k1 - b_k) < tolerance:
+            break
+        
+        b_k = b_k1
+    
+    # The eigenvalue is the Rayleigh quotient
+    eigenvalue = b_k.T @ matrix @ b_k
+    eigenvector = b_k
+    
+    return eigenvalue, eigenvector
+
+def power_iteration_modified(L, M, num_iterations=1000, tolerance=1e-10):
+    """
+    Compute the largest eigenvalue and corresponding eigenvector using the modified power iteration method.
+
+    Parameters:
+    L (numpy.ndarray or scipy.sparse matrix): The input matrix L.
+    M (numpy.ndarray or scipy.sparse matrix): The input matrix M.
+    num_iterations (int): Maximum number of iterations.
+    tolerance (float): Convergence tolerance.
+
+    Returns:
+    tuple: Largest eigenvalue and corresponding eigenvector.
+    """
+    # Start with a random vector of 1s
+    b_k = np.zeros(L.shape[1])
+    b_k[0] = 1.0
+    
+    for i in range(num_iterations):
+        # Solve M v = L u
+        b_k1 = spsolve(M, L @ b_k)
+        
+        # Normalize the vector
+        b_k1_norm = np.linalg.norm(b_k1)
+        print(f'Iteration: {i}, Norm: {b_k1_norm}')
+        b_k1 = b_k1 / b_k1_norm
+        
+        # Check for convergence
+        if np.linalg.norm(b_k1 - b_k) < tolerance:
+            break
+        
+        b_k = b_k1
+    
+    # The eigenvalue is the Rayleigh quotient
+    eigenvalue = b_k.T @ L @ b_k / (b_k.T @ M @ b_k)
+    eigenvector = b_k
+    
+    return eigenvalue, eigenvector
 
 def C(u0, u1, t1):
     return (u1 / u0 - 1.0)/t1
@@ -25,8 +129,7 @@ def pipeline(alpha, T, delta_time):
     N_space = 101 # Number of space steps
     # N_time  = 1001 # Number of time steps
     N_time  = int(T/delta_time) + 1 # Number of time steps
-    advection = "central" # or "central" or "blended"
-    advection = "upwind"
+    advection = "central" #  "central" or "upwind"
     time = np.linspace(0.0, T, N_time) # Time mesh
 
     # PHYSICAL PARAMETERS
@@ -123,7 +226,9 @@ def pipeline(alpha, T, delta_time):
     f[0,:] = 0.0
     f[-1,:] = 0.0
 
-
+    eigv,eigf = compute_principal_eigen(L)
+    print(f'Principal eigenvalue: {eigv}')
+    print(f'Principal eigenvector: {eigf}')
 
     # SOLVER
 
@@ -156,16 +261,25 @@ def pipeline(alpha, T, delta_time):
 
 ##############################################################################################################################
 
+#%%
+# Plotting parameters
+
 
 vec_alpha = [0.0, 0.25, 0.5, 0.75]
 vec_dt    = [0.01, 0.0075, 0.005, 0.0025, 0.001]
 
 SAVEFIG = False
+FIXED_COLORS = True
+FIXED_X = True
+FIXED_T = True
+LONG_TIME=True
+SHORT_TIME=True
+INTERACTIVE = False
+
 
 #%%
-# Plots
+# Color plots
 
-FIXED_COLORS = True
 if FIXED_COLORS:
     for index, val in enumerate(vec_alpha):
         fig = plt.figure(f'alpha = {val}', figsize=(6,6))
@@ -182,7 +296,9 @@ if FIXED_COLORS:
         else:
             plt.show()
 
-FIXED_X = True
+#%%
+# Fixed space
+
 if FIXED_X:
     fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_alpha):
@@ -198,7 +314,9 @@ if FIXED_X:
     else:
         plt.show()
 
-FIXED_T = True
+#%%
+# Fixed time
+
 if FIXED_T:
     fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_alpha):
@@ -217,7 +335,6 @@ if FIXED_T:
 #%%
 # Late time
 
-LONG_TIME=True
 if LONG_TIME:
     asimptote_index = 100
     
@@ -254,7 +371,6 @@ if LONG_TIME:
 #%%
 # early time
 
-SHORT_TIME=True
 if SHORT_TIME:
     asimptote_index = 100
     xi = int(u.shape[0]/2)
@@ -293,8 +409,9 @@ if SHORT_TIME:
         plt.show()
 
 ############
+#%%
+# Interactive plots
 
-INTERACTIVE = False
 if INTERACTIVE:
     
     alpha = 0.5
