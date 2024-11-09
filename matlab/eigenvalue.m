@@ -1,7 +1,7 @@
 
-b=-1;
+b=-10;
 
-
+%% Analytical eigenvalues
 y=chebfun('y',[-b.^2/4+1e-5,100]);
 disc = sqrt(b.^2 + 4*y);
 mu1 = -b + disc;
@@ -25,6 +25,7 @@ end
 
 u = u/norm(u);
 
+%% Eigenvalues with chebfun
 
 L=chebop(@(u) diff(u,2)+b*diff(u),[0,1]);
 L.lbc='dirichlet';
@@ -39,3 +40,40 @@ uu = uu/norm(uu);
 disp([l,ll])
 
 norm(u-v)
+
+
+%% Eigenvalues for different values of b
+% Define the range of b values
+b_values = 0:10:20;
+num_b = length(b_values);
+
+% Create a custom colormap that transitions from blue to red
+colors = [linspace(0, 1, num_b)', zeros(num_b, 1), linspace(1, 0, num_b)'];
+
+% Initialise figure
+figure;
+hold on;
+xlabel('Real Part');
+ylabel('Imaginary Part');
+title('Eigenvalues for Different Values of b');
+grid on;
+axis equal;
+
+% Loop through values of b with unique colors
+for k = 1:num_b
+    b = b_values(k);
+    
+    % Define the operator with current value of b
+    L.op = @(u) diff(u, 2) + b * diff(u);
+    
+    % Compute the first 15 eigenvalues
+    eigenvalues = eigs(L, 151) + 1e-10i;
+    
+    % Plot eigenvalues with the colour from the colormap
+    plot(eigenvalues, 'x', 'Color', colors(k, :), 'DisplayName', sprintf('b = %d', b));
+end
+
+%
+
+% Show legend to differentiate b values
+legend show;
