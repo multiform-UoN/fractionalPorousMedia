@@ -50,8 +50,8 @@ def power_iteration(matrix, num_iterations=1000, tolerance=1e-10):
     tuple: Largest eigenvalue and corresponding eigenvector.
     """
     # Start with a random vector of 1s
-    b_k = np.zeros(matrix.shape[1])
-    b_k[0] = 1.0
+    b_k = np.ones(matrix.shape[1])
+    b_k[0] = 0.0
     
     for i in range(num_iterations):
         # Calculate the matrix-by-vector product
@@ -69,12 +69,12 @@ def power_iteration(matrix, num_iterations=1000, tolerance=1e-10):
         b_k = b_k1
     
     # The eigenvalue is the Rayleigh quotient
-    eigenvalue = b_k.T @ matrix @ b_k
+    eigenvalue = b_k1_norm
     eigenvector = b_k
     
     return eigenvalue, eigenvector
 
-def power_iteration_modified(L, M, num_iterations=1000, tolerance=1e-10):
+def power_iteration_modified(L, M, num_iterations=1000, tolerance=1e-10, tau=1.0):
     """
     Compute the largest eigenvalue and corresponding eigenvector using the modified power iteration method.
 
@@ -88,12 +88,11 @@ def power_iteration_modified(L, M, num_iterations=1000, tolerance=1e-10):
     tuple: Largest eigenvalue and corresponding eigenvector.
     """
     # Start with a random vector of 1s
-    b_k = np.zeros(L.shape[1])
-    b_k[0] = 1.0
+    b_k = np.ones(L.shape[1])
+    b_k[0] = 0.0
     
     for i in range(num_iterations):
-        # Solve M v = L u
-        b_k1 = spsolve(M, L @ b_k)
+        b_k1 = spsolve(tau*M+L,b_k)
         
         # Normalize the vector
         b_k1_norm = np.linalg.norm(b_k1)
@@ -107,7 +106,7 @@ def power_iteration_modified(L, M, num_iterations=1000, tolerance=1e-10):
         b_k = b_k1
     
     # The eigenvalue is the Rayleigh quotient
-    eigenvalue = b_k.T @ L @ b_k / (b_k.T @ M @ b_k)
+    eigenvalue = b_k1_norm - tau
     eigenvector = b_k
     
     return eigenvalue, eigenvector
@@ -226,7 +225,7 @@ def pipeline(alpha, T, delta_time):
     f[0,:] = 0.0
     f[-1,:] = 0.0
 
-    eigv,eigf = compute_principal_eigen(L)
+    eigv,eigf = power_iteration_modified(L, M, num_iterations=1000, tolerance=1e-10, tau=-0.1)
     print(f'Principal eigenvalue: {eigv}')
     print(f'Principal eigenvector: {eigf}')
 
