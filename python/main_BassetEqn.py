@@ -225,7 +225,7 @@ def pipeline(alpha, T, delta_time):
     f[0,:] = 0.0
     f[-1,:] = 0.0
 
-    eigv,eigf = power_iteration_modified(L, M, num_iterations=1000, tolerance=1e-10, tau=-0.1)
+    eigv,eigf = power_iteration_modified(L, M, num_iterations=1000, tolerance=1e-6, tau=-1)
     print(f'Principal eigenvalue: {eigv}')
     print(f'Principal eigenvector: {eigf}')
 
