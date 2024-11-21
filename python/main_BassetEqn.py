@@ -90,26 +90,33 @@ def power_iteration_modified(L, M, num_iterations=1000, tolerance=1e-10, tau=1.0
     # Start with a random vector of 1s
     b_k = np.ones(L.shape[1])
     b_k[0] = 0.0
+    eigenvalue_k = 0.0
     
     for i in range(num_iterations):
-        b_k1 = spsolve(tau*M+L,b_k)
+        b_k1 = spsolve(-tau*M-L,b_k)
         
         # Normalize the vector
-        b_k1_norm = np.linalg.norm(b_k1)
-        print(f'Iteration: {i}, Norm: {b_k1_norm}')
-        b_k1 = b_k1 / b_k1_norm
+        # b_k1_norm = np.linalg.norm(b_k1)
+        # print(f'Iteration: {i}, Norm: {b_k1_norm}')
+        # b_k1 = b_k1 / b_k1_norm
         
+        # Rayleigh quotient
+        eigenvalue_k1 = b_k1 @ b_k / (b_k @ b_k)
+
+        print(f'Iteration: {i}, Eigenvalue: {eigenvalue_k1}')        
         # Check for convergence
-        if np.linalg.norm(b_k1 - b_k) < tolerance:
+        if np.abs(eigenvalue_k - eigenvalue_k1) < tolerance:
             break
+
+        # Update eigenvalue and b_k
+        b_k = b_k1 / (np.linalg.norm(b_k1))
+        eigenvalue_k = eigenvalue_k1
         
-        b_k = b_k1
-    
+            
     # The eigenvalue is the Rayleigh quotient
-    eigenvalue = b_k1_norm - tau
-    eigenvector = b_k
+    eigenvalue = (1.0/eigenvalue_k - tau)
     
-    return eigenvalue, eigenvector
+    return eigenvalue, b_k
 
 def C(u0, u1, t1):
     return (u1 / u0 - 1.0)/t1
@@ -225,7 +232,7 @@ def pipeline(alpha, T, delta_time):
     f[0,:] = 0.0
     f[-1,:] = 0.0
 
-    eigv,eigf = power_iteration_modified(L, M, num_iterations=1000, tolerance=1e-6, tau=-1)
+    eigv,eigf = power_iteration_modified(L, M, num_iterations=1000, tolerance=1e-6, tau=-0.1)
     print(f'Principal eigenvalue: {eigv}')
     print(f'Principal eigenvector: {eigf}')
 
