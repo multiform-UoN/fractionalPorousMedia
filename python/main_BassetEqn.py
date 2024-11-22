@@ -20,22 +20,20 @@ from scipy.sparse.linalg import eigs, spsolve
 # DOMAIN OF INTEGRATION
 xL = 0 # Domain left boundary
 xR = 1.0 # Domain right boundary
-T = 20 # Final time
+T = 10 # Final time
 
 # DISCRETISATION
-N_space = 11 # Number of space steps
+N_space = 101 # Number of space steps
 delta_time = 0.01 # Time step
-N_time  = int(T/delta_time) + 1 # Number of time steps
 advection = "upwind" #  "central" or "upwind"
-time = np.linspace(0.0, T, N_time) # Time mesh
 
-# PHYSICAL PARAMETERS
+# PHYSICAL PARAMETERS (constants, the solver can however handle fields)
 alpha = 0.5 # Fractional derivative order
-phi   = 0.5 * np.ones(N_space)  # Porosity (standard derviative coefficient) # Not used here
-beta  = 0.5 * np.ones(N_space)  # Fractional derivative coefficient
-nu    = 1.0 * np.ones(N_space)  # Diffusion coefficient field
-vel   = 1.0 * np.ones(N_space)  # Advection velocity field
-reac  = 0.0 * np.ones(N_space)  # Reaction coefficient field
+phi0   = 0.5 # Porosity (standard derviative coefficient) # Not used here
+beta0  = 0.5 # Fractional derivative coefficient
+nu0    = 1.0 # Diffusion coefficient
+vel0   = 1.0 # Advection velocity
+reac0  = 0.0 # Reaction coefficient
 
 # BOUNDARY CONDITIONS
 zetaL = 0.0 # Left boundary condition (Neumann coefficient)
@@ -91,9 +89,11 @@ def shifted_inverse_power_iteration(L, M, num_iterations=1000, tolerance=1e-10, 
     # print(matrix.toarray())
     
     for i in range(num_iterations):
-    
+        # solve forcing the neumann condition
+        b_k[-1] = 0.0
         b_k1 = spsolve(matrix,b_k)
-
+        b_k[-1] = b_k[-2]
+        
         # Rayleigh quotient
         eigenvalue_k1 = b_k1 @ b_k / (b_k @ b_k)
 
@@ -119,7 +119,7 @@ def early_time(time, u0, C):
     return u0 * (1.0 + C * time)
 
 # Solve the problem
-def solve(alpha=alpha, T=T, delta_time=delta_time):    
+def solve():    
 
     ########################################
     # Setup the problem
@@ -127,8 +127,16 @@ def solve(alpha=alpha, T=T, delta_time=delta_time):
     # CREATE THE MESH
     mesh_x = np.linspace(xL, xR, N_space) # Space mesh
     dx = mesh_x[1] - mesh_x[0] # Space step
+    N_time  = int(T/delta_time) + 1 # Number of time steps
+    time = np.linspace(0.0, T, N_time) # Time mesh
 
-
+    # CREATE THE COEFFICIENT FIELDS
+    phi   = phi0 * np.ones(N_space)  # Porosity (standard derviative coefficient)
+    beta  = beta0 * np.ones(N_space)  # Fractional derivative coefficient
+    nu    = nu0 * np.ones(N_space)  # Diffusion coefficient field
+    vel   = vel0 * np.ones(N_space)  # Advection velocity field
+    reac  = reac0 * np.ones(N_space)  # Reaction coefficient field
+    
     # REACTION OP.
     d0 = reac
     d0[0] = 0
@@ -168,12 +176,11 @@ def solve(alpha=alpha, T=T, delta_time=delta_time):
     elif advection == "central":
         L_adv = L_adv_c
         L = L_diff - L_adv + L_react
+    
 
     # MASS MATRIX (time derivative)
     M = np.eye(N_space)
-    M[0,0]   = 1.0
-    M[-1,-1] =  1.0
-
+    # correct for boundary conditions
     M[0,1]   = -zetaL / (zetaL - xiL * dx)
     M[-1,-2] = -zetaR / (zetaR + xiR * dx)
 
@@ -186,6 +193,10 @@ def solve(alpha=alpha, T=T, delta_time=delta_time):
     f = forcing(np.linspace(0.0, T, N_time), mesh_x)
     f[0,:] = 0.0
     f[-1,:] = 0.0
+    
+    # PRINT MATRICES
+    # print(L.toarray())
+    # print(M.toarray())
 
     # SOLVER
 
@@ -200,13 +211,15 @@ def solve(alpha=alpha, T=T, delta_time=delta_time):
     u = np.zeros((N_space, N_time)) #(x, t)
     if initial_condition==None:
         # use eigenfunction as initial condition
-        eigv,eigf = shifted_inverse_power_iteration(L, M, num_iterations=1000, tolerance=1e-10, tau=-2)
-        # print(f'Principal eigenvalue: {eigv}')
+        eigv,eigf = shifted_inverse_power_iteration(L, M, num_iterations=1000, tolerance=1e-10, tau=0.0)
+        print(f'Principal eigenvalue: {eigv}')
         # print(f'Principal eigenvector: {eigf}')
         u[ :,0] = eigf
     else:
         # user-defined initial condition
         u[ :,0] = initial_condition(mesh_x)
+        
+    # print(u[:,0])
 
     ## Time loop
     for n in range(1, N_time):
@@ -222,7 +235,14 @@ def solve(alpha=alpha, T=T, delta_time=delta_time):
 
         u[:,n] = sparse.linalg.spsolve(A, f1 + f2 + f3 + f4)
     
-    return time, mesh_x, u, T, xL, xR, dx, dt
+    # print(A.toarray())
+    # print("f1", f1)
+    # print("f2", f2)
+    # print("f3", f3)
+    # print("f4", f4)
+    
+    
+    return time, mesh_x, u
 
 ##############################################################################################################################
 
@@ -237,6 +257,7 @@ SAVEFIG = False
 FIXED_COLORS = True
 FIXED_X = True
 FIXED_T = True
+VARIABLE_T = True
 LONG_TIME=True
 SHORT_TIME=True
 INTERACTIVE = False
@@ -248,7 +269,10 @@ INTERACTIVE = False
 if FIXED_COLORS:
     for index, val in enumerate(vec_alpha):
         fig = plt.figure(f'alpha = {val}', figsize=(6,6))
-        time, mesh_x, u, T, xL, xR, dx, dt = solve(alpha=val, T=10, delta_time=0.01)
+        # Assign new values to global variables
+        alpha = val
+        # Now call the `solve` function without arguments
+        time, mesh_x, u = solve()
         ims = plt.imshow(u, cmap='jet', aspect='auto', origin='lower', extent=(0.0, T, xL, xR))
         # T, X = np.meshgrid(time, mesh_x, indexing='xy')
         # ims = plt.contourf(T, X, u, cmap='jet', aspect='auto', origin='lower', extent=(0.0, T, xL, xR), levels=100)
@@ -268,7 +292,10 @@ if FIXED_COLORS:
 if FIXED_X:
     fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_alpha):
-        time, mesh_x, u, T, xL, xR, dx, dt = solve(alpha=val, T=10, delta_time=0.01)
+        # Assign new values to global variables
+        alpha = val
+        # Now call the `solve` function without arguments
+        time, mesh_x, u = solve()        
         plt.plot(time, u[mesh_x==0.5, :].flatten(), label=rf'$\alpha={val}$')
     plt.xlabel(r'$t$')    
     plt.ylabel(r'$u$')
@@ -286,7 +313,10 @@ if FIXED_X:
 if FIXED_T:
     fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_alpha):
-        time, mesh_x, u, T, xL, xR, dx, dt = solve(alpha=val, T=10, delta_time=0.01)
+        # Assign new values to global variables
+        alpha = val
+        # Now call the `solve` function without arguments
+        time, mesh_x, u = solve()
         plt.plot(mesh_x, u[:, time==5].flatten(), label=rf'$\alpha={val}$')
     plt.xlabel(r'$x$')    
     plt.ylabel(r'$u$')
@@ -295,6 +325,29 @@ if FIXED_T:
     plt.tight_layout()
     if SAVEFIG:
         plt.savefig(f'./fig_fixed_t=5.pdf')
+    else:
+        plt.show()
+        
+#%%
+# Variable time
+
+if VARIABLE_T:
+    # Second plot for fixed alpha and various times
+    alpha = 0.5  # Fixed value of alpha
+    time, mesh_x, u = solve()
+    fig = plt.figure(figsize=(6,6))
+    # Number of equispaced samples you want
+    N = 5
+    indices = np.linspace(0, len(time)-1, N, dtype=int)
+    for itime in indices:        
+        plt.plot(mesh_x, u[:, itime].flatten()/u[-1,itime], label=rf'$t={time[itime]}$')
+    plt.xlabel(r'$x$')    
+    plt.ylabel(r'$u$')
+    plt.legend()
+    plt.grid()
+    plt.tight_layout()
+    if SAVEFIG:
+        plt.savefig(f'./fig_variable_t.pdf')
     else:
         plt.show()
 
@@ -306,7 +359,11 @@ if LONG_TIME:
     
     fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_alpha):
-        time, mesh_x, u, T, xL, xR, dx, dt = solve(alpha=val, T=100, delta_time=0.01)
+        # Assign new values to global variables
+        alpha = val
+        T = 100
+        # Now call the `solve` function without arguments
+        time, mesh_x, u = solve()
         plt.loglog(time[asimptote_index:], u[int(u.shape[0]/2), -1] * (time[asimptote_index:]/time[-1])**(-val), f'C{index}--', label=r'$C\,t^{-\alpha}$' + rf'   $\alpha={val}$')
         plt.loglog(time[asimptote_index:], u[int(u.shape[0]/2), asimptote_index:], f'C{index}-')
     plt.xlabel(r'$t$')    
@@ -319,20 +376,6 @@ if LONG_TIME:
     else:
         plt.show()
     
-    # fig = plt.figure(figsize=(6,6))
-    # for index, val in enumerate(vec_dt):
-    #     time, mesh_x, u, T, xL, xR, dx, dt = solve(alpha=0.5, T=100, delta_time=val)
-    #     plt.loglog(time[asimptote_index:], u[int(u.shape[0]/2), -1] * (time[asimptote_index:]/time[-1])**(-val), f'C{index}--', label=r'$C\,t^{-\alpha}$' + rf'   $\Delta t={val}$')
-    #     plt.loglog(time[asimptote_index:], u[int(u.shape[0]/2), asimptote_index:], f'C{index}-')
-    # plt.xlabel(r'$t$')    
-    # plt.ylabel(r'$u$')
-    # plt.legend()
-    # plt.grid()
-    # plt.tight_layout()
-    # if SAVEFIG:
-    #     plt.savefig(f'./fig_long_time_var_dt.pdf')
-    # else:
-    #     plt.show()
 
 #%%
 # early time
@@ -342,7 +385,12 @@ if SHORT_TIME:
     xi = int(u.shape[0]/2)
     fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_alpha):
-        time, mesh_x, u, T, xL, xR, dx, dt = solve(alpha=val, T=.1, delta_time=0.001)
+        # Assign new values to global variables
+        alpha = val
+        delta_time = 0.001
+        T = 0.1
+        # Now call the `solve` function without arguments
+        time, mesh_x, u = solve()
         plt.plot(time[:asimptote_index], u[xi, :asimptote_index], f'C{index}-')
         plt.plot(time[:asimptote_index], 
         early_time(time[:asimptote_index], u[xi, 0], C(u[xi, 0], u[xi, 1], time[1])), f'C{index}--', label=rf'$\alpha = {val}$'
@@ -359,7 +407,12 @@ if SHORT_TIME:
     
     fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_dt):
-        time, mesh_x, u, T, xL, xR, dx, dt = solve(alpha=0.5, T=.1, delta_time=val)
+        # Assign new values to global variables
+        alpha = 0.5
+        delta_time = val
+        T = 0.1
+        # Now call the `solve` function without arguments
+        time, mesh_x, u = solve()
         plt.plot(time[:asimptote_index], u[xi, :asimptote_index], f'C{index}-')
         plt.plot(time[:asimptote_index], 
         early_time(time[:asimptote_index], u[xi, 0], C(u[xi, 0], u[xi, 1], time[1])), f'C{index}--', label=rf'$\Delta t = {val}$'
@@ -381,10 +434,10 @@ if SHORT_TIME:
 if INTERACTIVE:
     
     alpha = 0.5
-    
+    delta_time = 0.01
     asimptote_index = 50
     
-    time, mesh_x, u, T, xL, xR, dx, dt = solve(alpha=alpha, delta_time=0.01)
+    time, mesh_x, u = solve()
     
     def update_time(val):
         val = float(val)
