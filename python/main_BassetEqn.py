@@ -14,69 +14,54 @@ from matplotlib import colors
 
 from scipy.sparse.linalg import eigs, spsolve
 
+
+#%%
+# Setup parameters
+# DOMAIN OF INTEGRATION
+xL = 0 # Domain left boundary
+xR = 1.0 # Domain right boundary
+T = 20 # Final time
+
+# DISCRETISATION
+N_space = 11 # Number of space steps
+delta_time = 0.01 # Time step
+N_time  = int(T/delta_time) + 1 # Number of time steps
+advection = "upwind" #  "central" or "upwind"
+time = np.linspace(0.0, T, N_time) # Time mesh
+
+# PHYSICAL PARAMETERS
+# alpha = 0.5 # Fractional derivative order
+# phi   = 0.5 * np.ones(N_space)  # Porosity (standard derviative coefficient)
+beta  = 0.5 * np.ones(N_space)  # Fractional derivative coefficient
+nu    = 1.0 * np.ones(N_space)  # Diffusion coefficient field
+vel   = 1.0 * np.ones(N_space)  # Advection velocity field
+reac  = 0.0 * np.ones(N_space)  # Reaction coefficient field
+
+# BOUNDARY CONDITIONS
+zetaL = 0.0 # Left boundary condition (Neumann coefficient)
+xiL = 1.0   # Left boundary condition (Dirichlet coefficient)
+zetaR = 1.0 # Left boundary condition (Neumann coefficient)
+xiR = 0.0   # Left boundary condition (Dirichlet coefficient)
+# NB Dirichlet values are imposed by the initial condition
+
+# INITIAL CONDITIONS
+# initial_condition = lambda x: (1 - x) * x
+# initial_condition = lambda x: (x > 0) # 0 at x=0, 1 elsewhere
+# initial_condition = lambda x: x # parabola
+# initial_condition = lambda x: np.exp(x/2)*np.sin(2*np.pi*x) # sin
+initial_condition = None # use eigenfunction
+
+# FORCING
+# forcing = lambda t, x: np.outer((np.abs(xR-x)*np.exp(x))*(0.3 + np.sin(15*x)/4), np.exp(-t*0.5*np.sin(5*t)))
+forcing = lambda t, x: np.outer(0.0 * x, 0.0 * t)
+
+
 #%%
 # Functions
 
-def compute_principal_eigen(matrix):
+def shifted_inverse_power_iteration(L, M, num_iterations=1000, tolerance=1e-10, tau=1.0):
     """
-    Compute the principal eigenvalue and eigenvector of the given matrix.
-
-    Parameters:
-    matrix (scipy.sparse matrix): The input matrix.
-
-    Returns:
-    tuple: Principal eigenvalue and corresponding eigenvector.
-    """
-    k = 20  # Number of eigenvalues and eigenvectors to compute
-    which = 'SM'  # 'LM' means Largest Magnitude
-
-    # Compute the largest eigenvalue and corresponding eigenvector
-    eigval, eigvec = eigs(matrix, k=k, which=which)
-    
-    print(f'Eigenvalues: {eigval}')
-    
-    return eigval[0], eigvec[:,0]
-
-def power_iteration(matrix, num_iterations=1000, tolerance=1e-10):
-    """
-    Compute the largest eigenvalue and corresponding eigenvector using the power iteration method.
-
-    Parameters:
-    matrix (numpy.ndarray or scipy.sparse matrix): The input matrix.
-    num_iterations (int): Maximum number of iterations.
-    tolerance (float): Convergence tolerance.
-
-    Returns:
-    tuple: Largest eigenvalue and corresponding eigenvector.
-    """
-    # Start with a random vector of 1s
-    b_k = np.ones(matrix.shape[1])
-    b_k[0] = 0.0
-    
-    for i in range(num_iterations):
-        # Calculate the matrix-by-vector product
-        b_k1 = matrix @ b_k
-        
-        # Normalize the vector
-        b_k1_norm = np.linalg.norm(b_k1)
-        print(f'Iteration: {i}, Norm: {b_k1_norm}')
-        b_k1 = b_k1 / b_k1_norm
-        
-        # Check for convergence
-        if np.linalg.norm(b_k1 - b_k) < tolerance:
-            break
-        
-        b_k = b_k1
-    
-    # The eigenvalue is the Rayleigh quotient
-    eigenvalue = b_k1_norm
-    eigenvector = b_k
-    
-    return eigenvalue, eigenvector
-
-def power_iteration_modified(L, M, num_iterations=1000, tolerance=1e-10, tau=1.0):
-    """
-    Compute the largest eigenvalue and corresponding eigenvector using the modified power iteration method.
+    Compute the largest eigenvalue and corresponding eigenvector using the inverse shifted power iteration method.
 
     Parameters:
     L (numpy.ndarray or scipy.sparse matrix): The input matrix L.
@@ -85,25 +70,34 @@ def power_iteration_modified(L, M, num_iterations=1000, tolerance=1e-10, tau=1.0
     tolerance (float): Convergence tolerance.
 
     Returns:
-    tuple: Largest eigenvalue and corresponding eigenvector.
+    tuple: Dominant eigenvalue and corresponding eigenvector.
     """
     # Start with a random vector of 1s
-    b_k = np.ones(L.shape[1])
+    b_k = np.ones(L.shape[1]) # remove last DoF
     b_k[0] = 0.0
     eigenvalue_k = 0.0
     
+    matrix = - L - tau * M 
+    
+    # # assume dirichlet on the lhs
+    matrix[0,0] = matrix[1,1]
+    matrix[0,1] = 0.0
+    # # assume neumann on the rhs, add identity term
+    matrix[-1, -1] = matrix[-2, -2]
+    matrix[-1, -2] = -matrix[-1, -1]
+    matrix[-1, -1] -= tau
+    
+    # print full matrix
+    # print(matrix.toarray())
+    
     for i in range(num_iterations):
-        b_k1 = spsolve(-tau*M-L,b_k)
-        
-        # Normalize the vector
-        # b_k1_norm = np.linalg.norm(b_k1)
-        # print(f'Iteration: {i}, Norm: {b_k1_norm}')
-        # b_k1 = b_k1 / b_k1_norm
-        
+    
+        b_k1 = spsolve(matrix,b_k)
+
         # Rayleigh quotient
         eigenvalue_k1 = b_k1 @ b_k / (b_k @ b_k)
 
-        print(f'Iteration: {i}, Eigenvalue: {eigenvalue_k1}')        
+        # print(f'Iteration: {i}, Eigenvalue: {eigenvalue_k1}')        
         # Check for convergence
         if np.abs(eigenvalue_k - eigenvalue_k1) < tolerance:
             break
@@ -114,7 +108,7 @@ def power_iteration_modified(L, M, num_iterations=1000, tolerance=1e-10, tau=1.0
         
             
     # The eigenvalue is the Rayleigh quotient
-    eigenvalue = (1.0/eigenvalue_k - tau)
+    eigenvalue = (1.0/eigenvalue_k + tau)
     
     return eigenvalue, b_k
 
@@ -124,45 +118,8 @@ def C(u0, u1, t1):
 def early_time(time, u0, C):
     return u0 * (1.0 + C * time)
 
-
-def pipeline(alpha, T, delta_time):    
-    # DOMAIN OF INTEGRATION
-    xL = 0 # Domain left boundary
-    xR = 1.0 # Domain right boundary
-    # T = 20 # Final time
-
-    # DISCRETISATION
-    N_space = 101 # Number of space steps
-    # N_time  = 1001 # Number of time steps
-    N_time  = int(T/delta_time) + 1 # Number of time steps
-    advection = "central" #  "central" or "upwind"
-    time = np.linspace(0.0, T, N_time) # Time mesh
-
-    # PHYSICAL PARAMETERS
-    # alpha = 0.5 # Fractional derivative order
-    # phi   = 0.5 * np.ones(N_space)  # Porosity (standard derviative coefficient)
-    beta  = 0.5 * np.ones(N_space)  # Fractional derivative coefficient
-    nu    = 1.0 * np.ones(N_space)  # Diffusion coefficient field
-    vel   = 1.0 * np.ones(N_space)  # Advection velocity field
-    reac  = 0.0 * np.ones(N_space)  # Reaction coefficient field
-
-    # BOUNDARY CONDITIONS
-    zetaL = 0.0 # Left boundary condition (Neumann coefficient)
-    xiL = 1.0   # Left boundary condition (Dirichlet coefficient)
-    zetaR = 1.0 # Left boundary condition (Neumann coefficient)
-    xiR = 0.0   # Left boundary condition (Dirichlet coefficient)
-    # NB Dirichlet values are imposed by the initial condition
-
-    # INITIAL CONDITIONS
-    # initial_condition = lambda x: (1 - x) * x
-    initial_condition = lambda x: (x > 0) # 0 at x=0, 1 elsewhere
-    # initial_condition = lambda x: x # parabola
-    # initial_condition = lambda x: np.exp(x/2)*np.sin(2*np.pi*x) # sin
-
-    # FORCING
-    # forcing = lambda t, x: np.outer((np.abs(xR-x)*np.exp(x))*(0.3 + np.sin(15*x)/4), np.exp(-t*0.5*np.sin(5*t)))
-    forcing = lambda t, x: np.outer(0.0 * x, 0.0 * t)
-
+# Solve the problem
+def solve(alpha=alpha, T=T, delta_time=delta_time):    
 
     ########################################
     # Setup the problem
@@ -207,20 +164,18 @@ def pipeline(alpha, T, delta_time):
 
     if advection == "upwind":
         L_adv = sparse.diags((vel > 0) * 1.0, 0) @ L_adv_l + sparse.diags((vel < 0) * 1.0, 0) @ L_adv_r
-        L = L_diff + L_adv + L_react
+        L = L_diff - L_adv + L_react
     elif advection == "central":
         L_adv = L_adv_c
-        L = L_diff + L_adv + L_react
+        L = L_diff - L_adv + L_react
 
     # MASS MATRIX (time derivative)
     M = np.eye(N_space)
-    M[0,0]   = -zetaL / dx + xiL
-    M[0,1]   =  zetaL / dx
-    M[-1,-1] =  zetaR / dx + xiR
-    M[-1,-2] = -zetaR / dx
+    M[0,0]   = 1.0
+    M[-1,-1] =  1.0
 
-    # M[0,1]   = -zetaL / (zetaL - xiL * dx)
-    # M[-1,-2] = -zetaR / (zetaR + xiR * dx)
+    M[0,1]   = -zetaL / (zetaL - xiL * dx)
+    M[-1,-2] = -zetaR / (zetaR + xiR * dx)
 
     M = sparse.csr_matrix(M)
 
@@ -231,10 +186,6 @@ def pipeline(alpha, T, delta_time):
     f = forcing(np.linspace(0.0, T, N_time), mesh_x)
     f[0,:] = 0.0
     f[-1,:] = 0.0
-
-    eigv,eigf = power_iteration_modified(L, M, num_iterations=1000, tolerance=1e-6, tau=-0.1)
-    print(f'Principal eigenvalue: {eigv}')
-    print(f'Principal eigenvector: {eigf}')
 
     # SOLVER
 
@@ -247,7 +198,15 @@ def pipeline(alpha, T, delta_time):
 
     ## Set solution vector and initial condition
     u = np.zeros((N_space, N_time)) #(x, t)
-    u[ :,0] = initial_condition(mesh_x)
+    if initial_condition==None:
+        # use eigenfunction as initial condition
+        eigv,eigf = shifted_inverse_power_iteration(L, M, num_iterations=1000, tolerance=1e-10, tau=-2)
+        # print(f'Principal eigenvalue: {eigv}')
+        # print(f'Principal eigenvector: {eigf}')
+        u[ :,0] = eigf
+    else:
+        # user-defined initial condition
+        u[ :,0] = initial_condition(mesh_x)
 
     ## Time loop
     for n in range(1, N_time):
@@ -289,7 +248,7 @@ INTERACTIVE = False
 if FIXED_COLORS:
     for index, val in enumerate(vec_alpha):
         fig = plt.figure(f'alpha = {val}', figsize=(6,6))
-        time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=val, T=10, delta_time=0.01)
+        time, mesh_x, u, T, xL, xR, dx, dt = solve(alpha=val, T=10, delta_time=0.01)
         ims = plt.imshow(u, cmap='jet', aspect='auto', origin='lower', extent=(0.0, T, xL, xR))
         # T, X = np.meshgrid(time, mesh_x, indexing='xy')
         # ims = plt.contourf(T, X, u, cmap='jet', aspect='auto', origin='lower', extent=(0.0, T, xL, xR), levels=100)
@@ -302,13 +261,14 @@ if FIXED_COLORS:
         else:
             plt.show()
 
+
 #%%
 # Fixed space
 
 if FIXED_X:
     fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_alpha):
-        time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=val, T=10, delta_time=0.01)
+        time, mesh_x, u, T, xL, xR, dx, dt = solve(alpha=val, T=10, delta_time=0.01)
         plt.plot(time, u[mesh_x==0.5, :].flatten(), label=rf'$\alpha={val}$')
     plt.xlabel(r'$t$')    
     plt.ylabel(r'$u$')
@@ -326,7 +286,7 @@ if FIXED_X:
 if FIXED_T:
     fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_alpha):
-        time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=val, T=10, delta_time=0.01)
+        time, mesh_x, u, T, xL, xR, dx, dt = solve(alpha=val, T=10, delta_time=0.01)
         plt.plot(mesh_x, u[:, time==5].flatten(), label=rf'$\alpha={val}$')
     plt.xlabel(r'$x$')    
     plt.ylabel(r'$u$')
@@ -346,7 +306,7 @@ if LONG_TIME:
     
     fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_alpha):
-        time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=val, T=100, delta_time=0.01)
+        time, mesh_x, u, T, xL, xR, dx, dt = solve(alpha=val, T=100, delta_time=0.01)
         plt.loglog(time[asimptote_index:], u[int(u.shape[0]/2), -1] * (time[asimptote_index:]/time[-1])**(-val), f'C{index}--', label=r'$C\,t^{-\alpha}$' + rf'   $\alpha={val}$')
         plt.loglog(time[asimptote_index:], u[int(u.shape[0]/2), asimptote_index:], f'C{index}-')
     plt.xlabel(r'$t$')    
@@ -361,7 +321,7 @@ if LONG_TIME:
     
     # fig = plt.figure(figsize=(6,6))
     # for index, val in enumerate(vec_dt):
-    #     time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=0.5, T=100, delta_time=val)
+    #     time, mesh_x, u, T, xL, xR, dx, dt = solve(alpha=0.5, T=100, delta_time=val)
     #     plt.loglog(time[asimptote_index:], u[int(u.shape[0]/2), -1] * (time[asimptote_index:]/time[-1])**(-val), f'C{index}--', label=r'$C\,t^{-\alpha}$' + rf'   $\Delta t={val}$')
     #     plt.loglog(time[asimptote_index:], u[int(u.shape[0]/2), asimptote_index:], f'C{index}-')
     # plt.xlabel(r'$t$')    
@@ -382,7 +342,7 @@ if SHORT_TIME:
     xi = int(u.shape[0]/2)
     fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_alpha):
-        time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=val, T=.1, delta_time=0.001)
+        time, mesh_x, u, T, xL, xR, dx, dt = solve(alpha=val, T=.1, delta_time=0.001)
         plt.plot(time[:asimptote_index], u[xi, :asimptote_index], f'C{index}-')
         plt.plot(time[:asimptote_index], 
         early_time(time[:asimptote_index], u[xi, 0], C(u[xi, 0], u[xi, 1], time[1])), f'C{index}--', label=rf'$\alpha = {val}$'
@@ -399,7 +359,7 @@ if SHORT_TIME:
     
     fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_dt):
-        time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=0.5, T=.1, delta_time=val)
+        time, mesh_x, u, T, xL, xR, dx, dt = solve(alpha=0.5, T=.1, delta_time=val)
         plt.plot(time[:asimptote_index], u[xi, :asimptote_index], f'C{index}-')
         plt.plot(time[:asimptote_index], 
         early_time(time[:asimptote_index], u[xi, 0], C(u[xi, 0], u[xi, 1], time[1])), f'C{index}--', label=rf'$\Delta t = {val}$'
@@ -424,7 +384,7 @@ if INTERACTIVE:
     
     asimptote_index = 50
     
-    time, mesh_x, u, T, xL, xR, dx, dt = pipeline(alpha=alpha, delta_time=0.01)
+    time, mesh_x, u, T, xL, xR, dx, dt = solve(alpha=alpha, delta_time=0.01)
     
     def update_time(val):
         val = float(val)
