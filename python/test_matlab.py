@@ -5,4 +5,9 @@ import scipy.io as sio
 # print(sol['u'].shape)
 
 matlab = sio.loadmat('../matlab/results/out.mat')
-print(matlab['t'].flatten().shape)
+print(type(matlab))
+
+for key in matlab.keys():
+    print()
+    print(key)
+    print(matlab[key])
