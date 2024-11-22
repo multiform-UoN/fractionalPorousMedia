@@ -30,8 +30,8 @@ advection = "upwind" #  "central" or "upwind"
 time = np.linspace(0.0, T, N_time) # Time mesh
 
 # PHYSICAL PARAMETERS
-# alpha = 0.5 # Fractional derivative order
-# phi   = 0.5 * np.ones(N_space)  # Porosity (standard derviative coefficient)
+alpha = 0.5 # Fractional derivative order
+phi   = 0.5 * np.ones(N_space)  # Porosity (standard derviative coefficient) # Not used here
 beta  = 0.5 * np.ones(N_space)  # Fractional derivative coefficient
 nu    = 1.0 * np.ones(N_space)  # Diffusion coefficient field
 vel   = 1.0 * np.ones(N_space)  # Advection velocity field
@@ -224,26 +224,7 @@ def solve(alpha=alpha, T=T, delta_time=delta_time):
     
     return time, mesh_x, u, T, xL, xR, dx, dt
 
-
-
-
-
-
-
-
-
-
-
 ##############################################################################################################################
-
-
-
-
-
-
-
-
-
 
 #%%
 # Plotting parameters
