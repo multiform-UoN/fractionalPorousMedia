@@ -224,7 +224,26 @@ def solve(alpha=alpha, T=T, delta_time=delta_time):
     
     return time, mesh_x, u, T, xL, xR, dx, dt
 
+
+
+
+
+
+
+
+
+
+
 ##############################################################################################################################
+
+
+
+
+
+
+
+
+
 
 #%%
 # Plotting parameters
