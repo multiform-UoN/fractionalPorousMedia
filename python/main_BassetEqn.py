@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, TextBox
 from matplotlib import colors
 
-
 from scipy.sparse.linalg import eigs, spsolve
 
 
@@ -43,11 +42,12 @@ xiR = 0.0   # Left boundary condition (Dirichlet coefficient)
 # NB Dirichlet values are imposed by the initial condition
 
 # INITIAL CONDITIONS
+# initial_condition = lambda x: 1.0 + 0 * x
 # initial_condition = lambda x: (1 - x) * x
-# initial_condition = lambda x: (x > 0) # 0 at x=0, 1 elsewhere
+initial_condition = lambda x: (x > 0) # 0 at x=0, 1 elsewhere
 # initial_condition = lambda x: x # parabola
 # initial_condition = lambda x: np.exp(x/2)*np.sin(2*np.pi*x) # sin
-initial_condition = None # use eigenfunction
+# initial_condition = None # use eigenfunction
 
 # FORCING
 # forcing = lambda t, x: np.outer((np.abs(xR-x)*np.exp(x))*(0.3 + np.sin(15*x)/4), np.exp(-t*0.5*np.sin(5*t)))
@@ -234,22 +234,22 @@ def solve():
         f4 = dt * np.sum(f[:,1:n], axis=1)
 
         u[:,n] = sparse.linalg.spsolve(A, f1 + f2 + f3 + f4)
-    
+
     # print(A.toarray())
     # print("f1", f1)
     # print("f2", f2)
     # print("f3", f3)
     # print("f4", f4)
-    
-    
+
     return time, mesh_x, u
+
+
 
 ##############################################################################################################################
 
-#%%
-# Plotting parameters
 
 
+#%% Plotting parameters
 vec_alpha = [0.0, 0.25, 0.5, 0.75]
 vec_dt    = [0.01, 0.0075, 0.005, 0.0025, 0.001]
 
@@ -259,14 +259,14 @@ FIXED_X = True
 FIXED_T = True
 VARIABLE_T = True
 LONG_TIME=True
-SHORT_TIME=True
+EARLY_TIME=True
 INTERACTIVE = False
 
 
-#%%
-# Color plots
 
+#%% Color plots
 if FIXED_COLORS:
+    print('Color plots')
     for index, val in enumerate(vec_alpha):
         fig = plt.figure(f'alpha = {val}', figsize=(6,6))
         # Assign new values to global variables
@@ -286,10 +286,10 @@ if FIXED_COLORS:
             plt.show()
 
 
-#%%
-# Fixed space
 
+#%% Fixed space
 if FIXED_X:
+    print('Fixed space')
     fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_alpha):
         # Assign new values to global variables
@@ -307,10 +307,11 @@ if FIXED_X:
     else:
         plt.show()
 
-#%%
-# Fixed time
 
+
+#%% Fixed time
 if FIXED_T:
+    print('Fixed time')
     fig = plt.figure(figsize=(6,6))
     for index, val in enumerate(vec_alpha):
         # Assign new values to global variables
@@ -327,11 +328,12 @@ if FIXED_T:
         plt.savefig(f'./fig_fixed_t=5.pdf')
     else:
         plt.show()
-        
-#%%
-# Variable time
 
+
+
+#%% Variable time
 if VARIABLE_T:
+    print('Variable time')
     # Second plot for fixed alpha and various times
     alpha = 0.5  # Fixed value of alpha
     time, mesh_x, u = solve()
@@ -351,10 +353,12 @@ if VARIABLE_T:
     else:
         plt.show()
 
-#%%
-# Late time
 
+
+#%% Late time
 if LONG_TIME:
+    print('Late time')
+    
     asimptote_index = 100
     
     fig = plt.figure(figsize=(6,6))
@@ -375,12 +379,13 @@ if LONG_TIME:
         plt.savefig(f'./fig_long_time_var_alpha.pdf')
     else:
         plt.show()
+
+
+
+#%% Early time
+if EARLY_TIME:
+    print('Early time')
     
-
-#%%
-# early time
-
-if SHORT_TIME:
     asimptote_index = 100
     xi = int(u.shape[0]/2)
     fig = plt.figure(figsize=(6,6))
@@ -401,7 +406,7 @@ if SHORT_TIME:
     plt.grid()
     plt.tight_layout()
     if SAVEFIG:
-        plt.savefig(f'./fig_short_time_var_alpha.pdf')
+        plt.savefig(f'./fig_early_time_var_alpha.pdf')
     else:
         plt.show()
     
@@ -423,11 +428,30 @@ if SHORT_TIME:
     plt.grid()
     plt.tight_layout()
     if SAVEFIG:
-        plt.savefig(f'./fig_short_time_var_dt.pdf')
+        plt.savefig(f'./fig_early_time_var_dt.pdf')
     else:
         plt.show()
 
-############
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+####################################################################################
 #%%
 # Interactive plots
 
