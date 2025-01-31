@@ -1,5 +1,5 @@
 %% Setup
-b = 1;
+b = -1;
 x=chebfun('x',[0,1]);
 y=chebfun('y',[-b.^2/4+1e-5,100]);
 
@@ -27,7 +27,7 @@ u = u/norm(u);
 
 %% Eigenvalues with chebfun
 
-L=chebop(@(u) -diff(u,2) + b*diff(u),[0,1]);
+L=chebop(@(u) diff(u,2) + b*diff(u),[0,1]);
 L.lbc='dirichlet';
 L.rbc='neumann';
 
