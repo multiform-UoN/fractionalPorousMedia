@@ -13,18 +13,33 @@ from matplotlib import colors
 
 from scipy.sparse.linalg import eigs, spsolve
 
+import matplotlib as mpl
+
+mpl.rcParams['lines.linewidth'] = 1.5
+mpl.rcParams['font.size'] = 11
+mpl.rcParams['text.usetex'] = True
+# mpl.rcParams['font.family'] = 'serif'
+# mpl.rcParams['font.sans-serif'] = 'Times'
+mpl.rcParams['font.family'] = 'sans-serif'
+mpl.rcParams['font.sans-serif'] = 'Helvetica'
+mpl.rcParams['lines.solid_capstyle'] = 'round'
+
+
 
 #%%
 # Setup parameters
+
 # DOMAIN OF INTEGRATION
 xL = 0 # Domain left boundary
 xR = 1.0 # Domain right boundary
 T = 10 # Final time
 
+
 # DISCRETISATION
 N_space = 101 # Number of space steps
 delta_time = 0.01 # Time step
 advection = "upwind" #  "central" or "upwind"
+
 
 # PHYSICAL PARAMETERS (constants, the solver can however handle fields)
 alpha = 0.5 # Fractional derivative order
@@ -34,6 +49,7 @@ nu0    = 1.0 # Diffusion coefficient
 vel0   = 1.0 # Advection velocity
 reac0  = 0.0 # Reaction coefficient
 
+
 # BOUNDARY CONDITIONS
 zetaL = 0.0 # Left boundary condition (Neumann coefficient)
 xiL = 1.0   # Left boundary condition (Dirichlet coefficient)
@@ -41,13 +57,11 @@ zetaR = 1.0 # Left boundary condition (Neumann coefficient)
 xiR = 0.0   # Left boundary condition (Dirichlet coefficient)
 # NB Dirichlet values are imposed by the initial condition
 
+
 # INITIAL CONDITIONS
-# initial_condition = lambda x: 1.0 + 0 * x
-# initial_condition = lambda x: (1 - x) * x
-initial_condition = lambda x: (x > 0) # 0 at x=0, 1 elsewhere
-# initial_condition = lambda x: x # parabola
-# initial_condition = lambda x: np.exp(x/2)*np.sin(2*np.pi*x) # sin
-# initial_condition = None # use eigenfunction
+# initial_condition = lambda x: (x > 0) # 0 at x=0, 1 elsewhere
+initial_condition = None # use eigenfunction
+
 
 # FORCING
 # forcing = lambda t, x: np.outer((np.abs(xR-x)*np.exp(x))*(0.3 + np.sin(15*x)/4), np.exp(-t*0.5*np.sin(5*t)))
@@ -119,9 +133,7 @@ def early_time(time, u0, C):
     return u0 * (1.0 + C * time)
 
 # Solve the problem
-def solve():    
-
-    ########################################
+def solve():
     # Setup the problem
 
     # CREATE THE MESH
@@ -153,7 +165,6 @@ def solve():
     d2[0]  = 0
     L_diff = (1.0 / np.square(dx)) * sparse.diags([d0, d1, d2], [0, -1, 1]) # Laplacian
 
-
     # ADVECTION OP.
     d0 = vel
     d1 = vel[1:]
@@ -162,14 +173,12 @@ def solve():
     d0[-1] = 0
     d2[0]  = 0
     d1[-1] = 0
-
     L_adv_l =  (1.0 / dx) * sparse.diags([ d0, -d1], [ 0, -1])     # left advection
     L_adv_r =  (1.0 / dx) * sparse.diags([-d0,  d2], [ 0,  1])     # right advection
     L_adv_c = -(1.0 / dx) * sparse.diags([-d1,  d2], [-1,  1]) / 2 # central advection
 
     ## Assemble full matrix
     L = None
-
     if advection == "upwind":
         L_adv = sparse.diags((vel > 0) * 1.0, 0) @ L_adv_l + sparse.diags((vel < 0) * 1.0, 0) @ L_adv_r
         L = L_diff - L_adv + L_react
@@ -180,10 +189,8 @@ def solve():
 
     # MASS MATRIX (time derivative)
     M = np.eye(N_space)
-    # correct for boundary conditions
-    M[0,1]   = -zetaL / (zetaL - xiL * dx)
-    M[-1,-2] = -zetaR / (zetaR + xiR * dx)
-
+    M[0,1]   = -zetaL / (zetaL - xiL * dx) # correct for boundary conditions
+    M[-1,-2] = -zetaR / (zetaR + xiR * dx) # correct for boundary conditions
     M = sparse.csr_matrix(M)
 
     # MASS MATRIX (fractional derivative)
@@ -191,7 +198,7 @@ def solve():
 
     # FORCING TERM
     f = forcing(np.linspace(0.0, T, N_time), mesh_x)
-    f[0,:] = 0.0
+    f[ 0,:] = 0.0
     f[-1,:] = 0.0
     
     # PRINT MATRICES
@@ -199,25 +206,21 @@ def solve():
     # print(M.toarray())
 
     # SOLVER
-
     ## Useful definitions
     # dt = T / (N_time - 1) # Time step
     dt = delta_time # Time step
     halpha = np.power(dt, 1 - alpha)
     b_fun = lambda k, alpha: (np.power(k + 1, 1 - alpha) - np.power(k, 1 - alpha)) / gamma(2 - alpha)
 
-
     ## Set solution vector and initial condition
-    u = np.zeros((N_space, N_time)) #(x, t)
-    if initial_condition==None:
-        # use eigenfunction as initial condition
+    u = np.zeros((N_space, N_time))
+    if initial_condition==None: # use eigenfunction as initial condition
         eigv,eigf = shifted_inverse_power_iteration(L, M, num_iterations=1000, tolerance=1e-10, tau=0.0)
         print(f'Principal eigenvalue: {eigv}')
         # print(f'Principal eigenvector: {eigf}')
         u[ :,0] = eigf
     else:
-        # user-defined initial condition
-        u[ :,0] = initial_condition(mesh_x)
+        u[ :,0] = initial_condition(mesh_x) # user-defined initial condition
         
     # print(u[:,0])
 
@@ -250,35 +253,36 @@ def solve():
 
 
 #%% Plotting parameters
-vec_alpha = [0.0, 0.25, 0.5, 0.75]
+vec_alpha = [0.1, 0.25, 0.5, 0.75, 0.9]
 vec_dt    = [0.01, 0.0075, 0.005, 0.0025, 0.001]
 
-SAVEFIG = False
-FIXED_COLORS = True
-FIXED_X = True
-FIXED_T = True
+SAVEFIG = True
+COLORS_2D = False
+FIXED_X = False
+FIXED_T = False
 VARIABLE_T = True
-LONG_TIME=True
-EARLY_TIME=True
+LATE_TIME = False
+EARLY_TIME = False
 INTERACTIVE = False
 
 
 
 #%% Color plots
-if FIXED_COLORS:
+if COLORS_2D:
     print('Color plots')
     for index, val in enumerate(vec_alpha):
-        fig = plt.figure(f'alpha = {val}', figsize=(6,6))
+        fig = plt.figure(f'alpha = {val}', figsize=(6,5))
         # Assign new values to global variables
         alpha = val
         # Now call the `solve` function without arguments
         time, mesh_x, u = solve()
-        ims = plt.imshow(u, cmap='jet', aspect='auto', origin='lower', extent=(0.0, T, xL, xR))
+        ims = plt.imshow(u, cmap='twilight_shifted', aspect='auto', origin='lower', extent=(0.0, T, xL, xR), clim=(0,0.15))
         # T, X = np.meshgrid(time, mesh_x, indexing='xy')
         # ims = plt.contourf(T, X, u, cmap='jet', aspect='auto', origin='lower', extent=(0.0, T, xL, xR), levels=100)
         cbar = fig.colorbar(ims)
         plt.xlabel(r'$t$')
-        plt.ylabel(r'$x$') 
+        plt.ylabel(r'$x$')
+        plt.xlim(right=0.5) 
         plt.tight_layout()
         if SAVEFIG:
             plt.savefig(f'./fig_colors_alpha={val}.pdf')
@@ -286,38 +290,42 @@ if FIXED_COLORS:
             plt.show()
 
 
-
 #%% Fixed space
 if FIXED_X:
+    indexmap = [(0,0), (0,1), (1,0), (1,1)]
     print('Fixed space')
-    fig = plt.figure(figsize=(6,6))
-    for index, val in enumerate(vec_alpha):
-        # Assign new values to global variables
-        alpha = val
-        # Now call the `solve` function without arguments
-        time, mesh_x, u = solve()        
-        plt.plot(time, u[mesh_x==0.5, :].flatten(), label=rf'$\alpha={val}$')
-    plt.xlabel(r'$t$')    
-    plt.ylabel(r'$u$')
-    plt.legend()
-    plt.grid()
+    # fig = plt.figure("Fixed space", figsize=(0.5*8.3,0.5*8.3))
+    fig, axs = plt.subplots(2, 2, figsize=(8.3, 8.3), sharex=True, sharey=True)
+    for iii, xval in enumerate([0.2, 0.4, 0.6, 0.8]):
+        for index, val in enumerate(vec_alpha):
+            alpha = val # Assign new values to global variables
+            time, mesh_x, u = solve() # Now call the `solve` function without arguments
+            axs[*indexmap[iii]].plot(time, u[mesh_x==xval, :].flatten(), label=rf'$\alpha={val}$')
+    
+        axs[*indexmap[iii]].set_title(f'$x={xval}$')
+        axs[*indexmap[iii]].set_xlim([-0.05, 1.05])
+        axs[*indexmap[iii]].grid()
+
+    axs[1,0].set_xlabel('$t$')
+    axs[1,1].set_xlabel('$t$')
+    axs[0,0].set_ylabel('$u$')
+    axs[1,0].set_ylabel('$u$')
+    axs[0,0].legend()
+
     plt.tight_layout()
     if SAVEFIG:
-        plt.savefig(f'./fig_fixed_x=0.5.pdf')
+        plt.savefig(f'./fig_fixedx_varalpha.pdf')
     else:
         plt.show()
-
 
 
 #%% Fixed time
 if FIXED_T:
     print('Fixed time')
-    fig = plt.figure(figsize=(6,6))
+    fig = plt.figure('Fixed time', figsize=(6,6))
     for index, val in enumerate(vec_alpha):
-        # Assign new values to global variables
-        alpha = val
-        # Now call the `solve` function without arguments
-        time, mesh_x, u = solve()
+        alpha = val # Assign new values to global variables
+        time, mesh_x, u = solve() # Now call the `solve` function without arguments
         plt.plot(mesh_x, u[:, time==5].flatten(), label=rf'$\alpha={val}$')
     plt.xlabel(r'$x$')    
     plt.ylabel(r'$u$')
@@ -337,7 +345,7 @@ if VARIABLE_T:
     # Second plot for fixed alpha and various times
     alpha = 0.5  # Fixed value of alpha
     time, mesh_x, u = solve()
-    fig = plt.figure(figsize=(6,6))
+    fig = plt.figure('Variable time', figsize=(4.15, 4.15))
     # Number of equispaced samples you want
     N = 5
     indices = np.linspace(0, len(time)-1, N, dtype=int)
@@ -356,12 +364,12 @@ if VARIABLE_T:
 
 
 #%% Late time
-if LONG_TIME:
+if LATE_TIME:
     print('Late time')
     
     asimptote_index = 100
     
-    fig = plt.figure(figsize=(6,6))
+    fig = plt.figure('Late time', figsize=(8.3,4))
     for index, val in enumerate(vec_alpha):
         # Assign new values to global variables
         alpha = val
@@ -376,7 +384,7 @@ if LONG_TIME:
     plt.grid()
     plt.tight_layout()
     if SAVEFIG:
-        plt.savefig(f'./fig_long_time_var_alpha.pdf')
+        plt.savefig(f'./fig_late_time_var_alpha.pdf')
     else:
         plt.show()
 
@@ -387,8 +395,7 @@ if EARLY_TIME:
     print('Early time')
     
     asimptote_index = 100
-    xi = int(u.shape[0]/2)
-    fig = plt.figure(figsize=(6,6))
+    fig = plt.figure('Early time -  var. alpha', figsize=(4.15, 4.15))
     for index, val in enumerate(vec_alpha):
         # Assign new values to global variables
         alpha = val
@@ -396,12 +403,14 @@ if EARLY_TIME:
         T = 0.1
         # Now call the `solve` function without arguments
         time, mesh_x, u = solve()
+        xi = int(u.shape[0]/2)
         plt.plot(time[:asimptote_index], u[xi, :asimptote_index], f'C{index}-')
         plt.plot(time[:asimptote_index], 
         early_time(time[:asimptote_index], u[xi, 0], C(u[xi, 0], u[xi, 1], time[1])), f'C{index}--', label=rf'$\alpha = {val}$'
         )
     plt.xlabel(r'$t$')    
     plt.ylabel(r'$u$')
+    plt.ylim(top=0.1)
     plt.legend()
     plt.grid()
     plt.tight_layout()
@@ -410,7 +419,7 @@ if EARLY_TIME:
     else:
         plt.show()
     
-    fig = plt.figure(figsize=(6,6))
+    fig = plt.figure('Early time - var. dt', figsize=(4.15, 4.15))
     for index, val in enumerate(vec_dt):
         # Assign new values to global variables
         alpha = 0.5
@@ -418,12 +427,14 @@ if EARLY_TIME:
         T = 0.1
         # Now call the `solve` function without arguments
         time, mesh_x, u = solve()
+        xi = int(u.shape[0]/2)
         plt.plot(time[:asimptote_index], u[xi, :asimptote_index], f'C{index}-')
         plt.plot(time[:asimptote_index], 
         early_time(time[:asimptote_index], u[xi, 0], C(u[xi, 0], u[xi, 1], time[1])), f'C{index}--', label=rf'$\Delta t = {val}$'
         )
     plt.xlabel(r'$t$')    
     plt.ylabel(r'$u$')
+    plt.ylim(top=0.1)
     plt.legend()
     plt.grid()
     plt.tight_layout()
@@ -431,25 +442,6 @@ if EARLY_TIME:
         plt.savefig(f'./fig_early_time_var_dt.pdf')
     else:
         plt.show()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 ####################################################################################
 #%%
@@ -475,7 +467,7 @@ if INTERACTIVE:
         val = float(val)
         index = int(u.shape[0] * val / (xR - xL))
         line_u_space.set_ydata(u[index,:])
-        line_longtime_space.set_ydata(u[index, -1] * (time[asimptote_index:]/time[-1])**(-alpha))
+        line_latetime_space.set_ydata(u[index, -1] * (time[asimptote_index:]/time[-1])**(-alpha))
         line_earlytime_space.set_ydata(early_time(time[:asimptote_index], u[index, 0], C(u[index, 0], u[index, 1], time[1])))
         line_im_time1.set_ydata([val,val])
         line_im_time2.set_ydata([val,val])
@@ -501,7 +493,7 @@ if INTERACTIVE:
     ax_space = fig.add_subplot(gs[1, 1])
     # ax_space.set_ylim([np.min(u)-0.05*np.abs(np.max(u)), np.max(u)+0.05*np.abs(np.max(u))])
     line_u_space,         = ax_space.loglog(time, u[int(u.shape[0]/2), :], '-', label='u')
-    line_longtime_space,  = ax_space.loglog(time[asimptote_index:], u[int(u.shape[0]/2), -1] * (time[asimptote_index:]/time[-1])**(-alpha), 'r--', label=r'$C\,t^{-\alpha}$')
+    line_latetime_space,  = ax_space.loglog(time[asimptote_index:], u[int(u.shape[0]/2), -1] * (time[asimptote_index:]/time[-1])**(-alpha), 'r--', label=r'$C\,t^{-\alpha}$')
     line_earlytime_space, = ax_space.loglog(
         time[:asimptote_index], 
         early_time(time[:asimptote_index], u[int(u.shape[0]/2), 0], C(u[int(u.shape[0]/2), 0], u[int(u.shape[0]/2), 1], time[1])), 'r--', label=r'$u_0(1 + Ct)$')
