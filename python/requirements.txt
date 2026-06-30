@@ -1,4 +1,17 @@
-scipy
-matplotlib
-PyQt5
+# Runtime dependencies for the fractional Basset solver (main_BassetEqn.py).
+# Lower bounds reflect the versions the code was developed/tested against;
+# they are kept as ">=" so the solver stays usable on slightly older stacks
+# while documenting a known-good baseline.
+numpy>=2.0          # array backend (note: NumPy 2.x API is assumed)
+scipy>=1.11         # sparse matrices, sparse LU (factorized), special functions (gamma)
+matplotlib>=3.8     # plotting driver and interactive widgets
 
+# Optional GUI backend for the INTERACTIVE plotting block (Slider widgets).
+# Not required for headless runs or for the test suite; install if you want
+# the interactive figures.
+PyQt5>=5.15
+
+# Test / development dependency. Only needed to run the verification suite
+# (test_basset.py); the suite is also runnable via the stdlib:
+#   python -m unittest test_basset -v
+pytest>=8.0
