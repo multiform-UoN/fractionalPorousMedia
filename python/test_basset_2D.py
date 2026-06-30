@@ -15,6 +15,9 @@ coupled steady Darcy flow solver in ``main_BassetEqn_2D``.
 - test_flushing_actually_flushes : the coupled flushing test configuration
   (clean-water Dirichlet inlet) must remove mass from the column; a regression
   guard against the inlet being frozen at the saturated value.
+- test_smooth_permeability_reduces_nodal_divergence : smooth_permeability()
+  must reduce the nodal central-difference divergence by at least an order of
+  magnitude for a 1000:1 contrast, without changing the face-flux conservation.
 
 Run with either:
     python -m unittest test_basset_2D -v
@@ -108,6 +111,56 @@ class TestDarcy2D(unittest.TestCase):
         # The inlet must hold the clean-water value, and mass must drop clearly.
         self.assertAlmostEqual(u[0, N_y // 2, -1], 0.0, places=6)
         self.assertLess(mass_end, 0.85 * mass0)
+
+    def test_smooth_permeability_reduces_nodal_divergence(self):
+        """
+        smooth_permeability() must substantially reduce the nodal divergence
+        artefact at a sharp permeability interface while preserving face-flux
+        conservation.
+
+        Background: the face-flux field (TPFA) is always conservative to
+        machine precision regardless of K sharpness.  However, the nodal
+        velocities that the FD advection stencil sees are averages of two
+        opposing face fluxes; across a 1000:1 permeability jump these averages
+        carry a large discontinuity, measured by the central-difference nodal
+        divergence.  Smoothing K before the Darcy solve spreads the transition
+        over ~3 cells, reducing the nodal artefact by >10x.  The face-flux
+        conservation must remain intact after smoothing.
+        """
+        N = 41
+        dx = dy = 1.0 / (N - 1)
+        mx = np.linspace(0.0, 1.0, N)
+        X, Y = np.meshgrid(mx, mx, indexing='ij')
+
+        K_sharp = np.ones((N, N))
+        K_sharp[(X - 0.5) ** 2 + (Y - 0.5) ** 2 <= 0.15 ** 2] = 1e-3
+
+        def nodal_divmax(vx, vy):
+            d = ((vx[2:, 1:-1] - vx[:-2, 1:-1]) / (2 * dx) +
+                 (vy[1:-1, 2:] - vy[1:-1, :-2]) / (2 * dx))
+            return np.abs(d).max()
+
+        # Baseline: sharp K (no smoothing)
+        _, vx_sharp, vy_sharp = m2.solve_darcy_flow(N, N, dx, dy, K_sharp)
+        div_sharp = nodal_divmax(vx_sharp, vy_sharp)
+
+        # After K-smoothing with sigma=1.5
+        K_smooth = m2.smooth_permeability(K_sharp, sigma=1.5)
+        _, vx_sm, vy_sm = m2.solve_darcy_flow(N, N, dx, dy, K_smooth)
+        div_smooth = nodal_divmax(vx_sm, vy_sm)
+
+        print(f"[smooth] nodal max|div| sharp={div_sharp:.2e}  smooth={div_smooth:.2e}  "
+              f"ratio={div_sharp / div_smooth:.1f}x")
+
+        # Smoothing must reduce nodal div by at least 10x.
+        self.assertGreater(div_sharp / div_smooth, 10.0)
+
+        # Face-flux conservation must be preserved after smoothing.
+        self.assertLess(_face_flux_divergence(N, dx, dy, K_smooth), 1e-9)
+
+        # Barrier still clearly lower permeability than the surrounding medium.
+        c = N // 2
+        self.assertLess(K_smooth[c, c], 0.1 * K_smooth[0, 0])
 
 
 if __name__ == '__main__':
